@@ -104,16 +104,18 @@ Phase 1: Foundation (Days 1-2)
 ### Completed
 - [x] Project initialized with Next.js 16
 - [x] CLAUDE.md created with build plan
+- [x] Core deps installed (Privy, wagmi, viem, @lifi/sdk, ai, @ai-sdk/anthropic)
+- [x] Environment config (.env.example, .env.local)
+- [x] 3-panel layout shell (sidebar, chat, dashboard)
+- [x] Dark ocean theme with bioluminescent accents
+- [x] Landing page with "Dive In" CTA
 
 ### In Progress
-- [ ] Install core deps (Privy, wagmi, viem, @lifi/sdk)
-- [ ] Set up environment config
-- [ ] Create 3-panel layout shell
+- [ ] Privy + Coinbase Smart Wallet integration
 
 ### Up Next
-- [ ] Privy + Coinbase Smart Wallet integration
-- [ ] Risk depth selection screen
-- [ ] Dark theme + ocean color palette
+- [ ] Risk depth selection screen (Shallows/Mid/Deep)
+- [ ] Wallet connection flow in sidebar
 
 ### Blockers
 (none)
@@ -122,3 +124,4 @@ Phase 1: Foundation (Days 1-2)
 - Mainnet budget: $20-50 for demo transactions
 - Team: 2 people
 - Deadline: Feb 10, 2026
+- Build passes, routes: `/` (landing), `/dashboard` (3-panel app)
