@@ -100,11 +100,13 @@ Each conversation with Tidal represents a strategy pool. Users can:
 **Description:** User selects risk tolerance, agent adapts behavior accordingly  
 **Risk Tiers (Ocean Depth Metaphor):**
 
-| Tier | Label | Description | Strategies Allowed |
-|------|-------|-------------|-------------------|
-| 1 | Shallows | Calm, protected waters | Stablecoin vaults only, no leverage |
-| 2 | Mid-Depth | Balanced currents | LP positions, single-asset lending |
-| 3 | Deep Water | Strong currents, bigger rewards | Leverage loops (future), volatile pairs |
+| Tier | Label | Description | Strategies Allowed | Li.Fi Usage |
+|------|-------|-------------|-------------------|-------------|
+| 1 | Shallows | Calm, protected waters | Stablecoin lending (USDC, DAI) | Swap ETH/other → stables |
+| 2 | Mid-Depth | Balanced currents | Above + ETH lending | Swap/rebalance between any |
+| 3 | Deep Water | Strong currents, bigger rewards | Above + multi-step combos | Complex multi-hop routing |
+
+**Key Insight:** Li.Fi is used at ALL tiers - risk tier only determines WHICH yield strategies are allowed, not whether routing is used.
 
 **User Flow:**
 1. After wallet creation, user sees depth selection screen
@@ -180,10 +182,31 @@ This keeps your pool diversified while catching good yields. Want me to make the
 - Read vault APY and TVL
 - Note: Yearn may require mainnet or mock for Sepolia
 
-**LI.FI Integration:**
-- Execute swaps (USDC ↔ DAI)
-- Cross-chain bridges (future)
-- Note: LI.FI requires mainnet - use Tenderly simulation for testing
+**LI.FI Integration (UNIVERSAL ROUTING LAYER):**
+
+Li.Fi is used across ALL risk tiers as the token routing layer:
+
+| Scenario | Li.Fi Action |
+|----------|--------------|
+| User has wrong token for strategy | Swap to required token |
+| User wants to rebalance | Route between assets |
+| Cross-chain movement (stretch) | Bridge to target chain |
+
+**Flow Example:**
+```
+User: "I have ETH, earn yield" (Shallows user)
+Agent: "I'll swap your ETH → USDC via Li.Fi (best rate via Uniswap),
+        then supply to AAVE for 4.2% APY"
+→ Shows Li.Fi RouteDisplay
+→ Shows AAVE supply preview
+→ User approves
+→ Execute swap, then deposit
+```
+
+**Prize Strategy:**
+- Agent ALWAYS mentions Li.Fi when routing
+- Show route visualization for every swap
+- Explain rate optimization: "Li.Fi found 0.3% better rate across 5 DEXs"
 
 **Acceptance Criteria:**
 - [ ] AAVE supply/withdraw works on Base Sepolia

@@ -88,11 +88,37 @@ lib/
 
 ## Li.Fi Integration (Prize Critical)
 
-To win the Li.Fi prize:
-1. Use Li.Fi for ALL swaps (not just one demo tx)
-2. Show route visualization (which DEXs, why this path)
-3. Agent explicitly mentions Li.Fi: "Routing via Li.Fi for better rates"
-4. Display bridge capability in UI
+**Li.Fi is the UNIVERSAL ROUTING LAYER for all tiers** - not just Deep Water.
+
+### When Li.Fi is Used:
+- User has wrong token for strategy → Li.Fi swaps first
+- User wants to rebalance portfolio → Li.Fi routes between assets
+- Any token conversion needed → Li.Fi finds optimal path
+- Cross-chain movement (stretch) → Li.Fi bridges
+
+### Strategy Flow:
+```
+User Request → Check Risk Depth → Filter Strategies →
+  Check if swap needed?
+    YES → Li.Fi swap → Then deposit to protocol
+    NO  → Direct deposit to protocol
+  → Update Dashboard
+```
+
+### Risk Tier Strategy Matrix:
+
+| Tier | Yield Strategies | Accepted Tokens | Li.Fi Role |
+|------|-----------------|-----------------|------------|
+| Shallows | AAVE USDC, AAVE DAI | USDC, DAI, ETH* | Swap ETH→stable first |
+| Mid-Depth | Above + AAVE ETH/WETH | USDC, DAI, ETH | Swap between any |
+| Deep Water | Above + multi-step | All supported | Complex routing |
+
+*Example: Shallows user with ETH → Li.Fi swaps ETH→USDC → AAVE supply
+
+### Agent Behavior:
+- ALWAYS mention Li.Fi when routing: "Routing via Li.Fi across 5 DEXs for 0.3% better rate"
+- Show RouteDisplay component for every swap
+- Explain WHY this route was chosen
 
 ---
 
@@ -121,11 +147,11 @@ Phase 1: Foundation (Days 1-2)
 - [x] RouteDisplay and SwapPreview components
 
 ### In Progress
-- [ ] Wire Li.Fi to AI agent chat
+- [ ] Build yield strategies registry (lib/strategies.ts)
 
 ### Up Next
 - [ ] Phase 3: AAVE integration (Days 5-6)
-- [ ] Phase 4: AI Agent tools (Days 7-8)
+- [ ] Phase 4: AI Agent with Li.Fi + AAVE tools (Days 7-8)
 
 ### Blockers
 (none)
