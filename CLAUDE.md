@@ -115,12 +115,17 @@ Phase 1: Foundation (Days 1-2)
 - [x] Risk depth selection screen (/onboard)
 - [x] useRiskDepth hook for preference storage
 - [x] Auth flow: landing → onboard → dashboard
+- [x] Li.Fi SDK wrapper (lib/lifi.ts)
+- [x] Li.Fi API routes (/api/lifi/quote, /api/lifi/routes)
+- [x] useLifiSwap hook for React integration
+- [x] RouteDisplay and SwapPreview components
 
 ### In Progress
-- [ ] Test full onboarding flow
+- [ ] Wire Li.Fi to AI agent chat
 
 ### Up Next
-- [ ] Phase 2: Li.Fi integration (Days 3-4)
+- [ ] Phase 3: AAVE integration (Days 5-6)
+- [ ] Phase 4: AI Agent tools (Days 7-8)
 
 ### Blockers
 (none)
