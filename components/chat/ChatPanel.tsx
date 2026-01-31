@@ -1,42 +1,76 @@
 'use client';
 
-import { useState } from 'react';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-const welcomeMessage: Message = {
-  id: 'welcome',
-  role: 'assistant',
-  content: `Welcome to your tidal pool! 🌊
-
-I'm your AI tidekeeper, here to help you navigate the currents of DeFi yield. I can:
-
-• **Analyze opportunities** - Find the best yields for your risk depth
-• **Execute strategies** - Supply to AAVE, swap via Li.Fi
-• **Monitor your pool** - Track positions and alert on changes
-
-What would you like to explore today?`,
-};
+import { useChat } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
+import { useEffect, useRef, useState, FormEvent } from 'react';
+import { useAccount } from 'wagmi';
+import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
+import { useAavePositions } from '@/lib/hooks/useAave';
+import { ActionCard } from './ActionCard';
+import { RISK_DEPTHS } from '@/lib/constants';
 
 export function ChatPanel() {
-  const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
+  const [mounted, setMounted] = useState(false);
   const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Get context for AI
+  const { address, isConnected } = useAccount();
+  const { riskDepth } = useRiskDepth();
+  const { positions } = useAavePositions();
+
+  // Build context for the AI
+  const context = {
+    riskDepth,
+    walletConnected: isConnected,
+    walletAddress: address,
+    positions: positions.map((p) => ({
+      token: p.token,
+      amount: p.suppliedFormatted,
+      protocol: 'AAVE V3',
+    })),
+  };
+
+  const initialMessages: UIMessage[] = [
+    {
+      id: 'welcome',
+      role: 'assistant',
+      parts: [{ type: 'text', text: getWelcomeMessage(riskDepth ?? 'shallows') }],
+    },
+  ];
+
+  const { messages, sendMessage, status } = useChat({
+    messages: initialMessages,
+  });
+
+  const isLoading = status === 'streaming' || status === 'submitted';
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
 
-    // Add user message (AI response will be handled later)
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now().toString(), role: 'user', content: input },
-    ]);
+    sendMessage(
+      { text: input },
+      { body: { context } } // Send fresh context with each message
+    );
     setInput('');
   };
+
+  const depthConfig = RISK_DEPTHS[riskDepth ?? 'shallows'];
+
+  // Show loading state during hydration
+  if (!mounted) {
+    return <ChatPanelSkeleton />;
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -44,14 +78,21 @@ export function ChatPanel() {
       <div className="flex-shrink-0 px-6 py-4 border-b border-white/5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-slate-200">Calm Waters</h2>
-            <p className="text-xs text-slate-500">Shallows · Low risk strategies</p>
+            <h2 className="font-semibold text-slate-200">{depthConfig.label}</h2>
+            <p className="text-xs text-slate-500">{depthConfig.description}</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live
-            </span>
+            {isConnected ? (
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Connected
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                Connect Wallet
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -59,33 +100,158 @@ export function ChatPanel() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
+          <div key={message.id}>
+            {/* Regular message */}
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                message.role === 'user'
-                  ? 'bg-cyan-500/20 text-slate-100 rounded-br-md'
-                  : 'bg-white/5 text-slate-300 rounded-bl-md'
-              }`}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {message.role === 'assistant' && (
-                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                  message.role === 'user'
+                    ? 'bg-cyan-500/20 text-slate-100 rounded-br-md'
+                    : 'bg-white/5 text-slate-300 rounded-bl-md'
+                }`}
+              >
+                {message.role === 'assistant' && (
+                  <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
+                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center">
+                      <svg
+                        className="w-3 h-3 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                      </svg>
+                    </div>
+                    <span className="text-xs font-medium text-cyan-400">Tidal</span>
                   </div>
-                  <span className="text-xs font-medium text-cyan-400">Tidal</span>
+                )}
+                <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {/* v6: Render message parts */}
+                  {message.parts?.map((part, i) => {
+                    if (part.type === 'text') {
+                      return <span key={i}>{part.text}</span>;
+                    }
+                    return null;
+                  })}
                 </div>
-              )}
-              <div className="text-sm leading-relaxed whitespace-pre-wrap prose prose-invert prose-sm max-w-none">
-                {message.content}
+              </div>
+            </div>
+
+            {/* Tool invocations from parts - show action cards */}
+            {message.parts?.map((part, i) => {
+              if (part.type === 'tool-invocation') {
+                const toolInvocation = part;
+                // v6: states are 'output-available', 'output-error', 'output-denied', 'input-streaming', 'input-available', 'approval-requested', 'approval-responded'
+                if (toolInvocation.state === 'output-available') {
+                  const result = toolInvocation.output as Record<string, unknown>;
+
+                  // Check if this is an action that needs approval
+                  if (result.action && ['supply', 'withdraw', 'swap_and_supply'].includes(result.action as string)) {
+                    return (
+                      <ActionCard
+                        key={i}
+                        action={result.action as string}
+                        protocol={result.protocol as string | undefined}
+                        token={result.token as string | undefined}
+                        amount={result.amount as string | undefined}
+                        estimatedApy={result.estimatedApy as number | undefined}
+                        estimatedYearlyReturn={result.estimatedYearlyReturn as string | undefined}
+                        steps={result.steps as ActionCardProps['steps']}
+                        risks={result.risks as string[] | undefined}
+                        note={result.note as string | null | undefined}
+                        onApprove={() => {
+                          // In production, trigger actual transaction
+                          console.log('Approved:', result);
+                        }}
+                        onReject={() => {
+                          console.log('Rejected:', result);
+                        }}
+                      />
+                    );
+                  }
+
+                  // For other tool results (like getQuote), show inline
+                  if (result.fromToken && result.toToken && result.rate) {
+                    return (
+                      <div
+                        key={i}
+                        className="ml-7 my-2 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 text-sm"
+                      >
+                        <div className="flex items-center gap-2 text-slate-400">
+                          <span className="text-cyan-400">Li.Fi Quote:</span>
+                          <span>
+                            {result.fromAmount as string} {result.fromToken as string} → {result.toAmount as string} {result.toToken as string}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">
+                          Rate: 1 {result.fromToken as string} = {result.rate as number} {result.toToken as string}
+                        </div>
+                      </div>
+                    );
+                  }
+                }
+
+                // Show loading state for pending tool calls
+                if (toolInvocation.state === 'input-streaming' || toolInvocation.state === 'input-available') {
+                  // Extract tool name from type (e.g., 'tool-getQuote' -> 'getQuote')
+                  const toolName = toolInvocation.title || part.type.replace('tool-', '');
+                  return (
+                    <div
+                      key={i}
+                      className="ml-7 my-2 flex items-center gap-2 text-sm text-slate-500"
+                    >
+                      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                        />
+                      </svg>
+                      Checking {toolName}...
+                    </div>
+                  );
+                }
+              }
+              return null;
+            })}
+          </div>
+        ))}
+
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="bg-white/5 rounded-2xl rounded-bl-md px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" />
+                <div
+                  className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce"
+                  style={{ animationDelay: '0.1s' }}
+                />
+                <div
+                  className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce"
+                  style={{ animationDelay: '0.2s' }}
+                />
               </div>
             </div>
           </div>
-        ))}
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
@@ -100,11 +266,21 @@ export function ChatPanel() {
           />
           <button
             type="submit"
-            disabled={!input.trim()}
+            disabled={!input.trim() || isLoading}
             className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:bg-slate-700 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
           >
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            <svg
+              className="w-4 h-4 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+              />
             </svg>
           </button>
         </form>
@@ -114,4 +290,43 @@ export function ChatPanel() {
       </div>
     </div>
   );
+}
+
+function ChatPanelSkeleton() {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex-shrink-0 px-6 py-4 border-b border-white/5">
+        <div className="h-6 w-32 bg-slate-800 rounded animate-pulse" />
+        <div className="h-4 w-48 bg-slate-800/50 rounded animate-pulse mt-1" />
+      </div>
+      <div className="flex-1 p-6">
+        <div className="h-32 bg-white/5 rounded-2xl animate-pulse" />
+      </div>
+    </div>
+  );
+}
+
+function getWelcomeMessage(riskDepth: string): string {
+  const depthConfig = RISK_DEPTHS[riskDepth as keyof typeof RISK_DEPTHS];
+
+  return `Welcome to your tidal pool!
+
+I'm Tidal, your AI guide for DeFi yield. You're currently exploring the **${depthConfig.label}** - ${depthConfig.description.toLowerCase()}.
+
+I can help you:
+• Find the best yields for your risk level
+• Execute swaps via Li.Fi
+• Supply to AAVE for steady returns
+
+What would you like to explore?`;
+}
+
+// Type for ActionCard props used in tool invocations
+interface ActionCardProps {
+  steps?: Array<{
+    step: number;
+    action: string;
+    description: string;
+    provider: string;
+  }>;
 }

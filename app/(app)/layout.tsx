@@ -1,5 +1,5 @@
 import { PoolList } from '@/components/sidebar/PoolList';
-import { PortfolioPanel } from '@/components/dashboard/PortfolioPanel';
+import { PortfolioPanelWrapper } from '@/components/dashboard/PortfolioPanelWrapper';
 
 export default function AppLayout({
   children,
@@ -20,7 +20,7 @@ export default function AppLayout({
 
       {/* Right Sidebar - Portfolio Dashboard */}
       <aside className="w-80 flex-shrink-0 bg-black/20 backdrop-blur-sm hidden lg:block">
-        <PortfolioPanel />
+        <PortfolioPanelWrapper />
       </aside>
     </div>
   );
