@@ -109,13 +109,16 @@ Phase 1: Foundation (Days 1-2)
 - [x] 3-panel layout shell (sidebar, chat, dashboard)
 - [x] Dark ocean theme with bioluminescent accents
 - [x] Landing page with "Dive In" CTA
+- [x] Privy + Coinbase Smart Wallet integration
+- [x] useWallet hook with SSR handling
+- [x] Wallet connection UI in sidebar
 
 ### In Progress
-- [ ] Privy + Coinbase Smart Wallet integration
+- [ ] Risk depth selection screen (Shallows/Mid/Deep)
 
 ### Up Next
-- [ ] Risk depth selection screen (Shallows/Mid/Deep)
-- [ ] Wallet connection flow in sidebar
+- [ ] Test wallet connection with Privy app ID
+- [ ] Phase 2: Li.Fi integration
 
 ### Blockers
 (none)

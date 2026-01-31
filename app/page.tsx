@@ -1,6 +1,21 @@
-import Link from 'next/link';
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useWallet } from '@/lib/hooks/useWallet';
+export const dynamic = 'force-dynamic';
 
 export default function Home() {
+  const router = useRouter();
+  const { ready, authenticated, login } = useWallet();
+
+  const handleDiveIn = () => {
+    if (authenticated) {
+      router.push('/dashboard');
+    } else {
+      login();
+    }
+  };
+
   return (
     <div className="min-h-screen tidal-bg tidal-caustics flex flex-col">
       {/* Header */}
@@ -13,12 +28,13 @@ export default function Home() {
           </div>
           <span className="font-semibold text-lg tracking-tight">Tidal</span>
         </div>
-        <Link
-          href="/dashboard"
-          className="px-4 py-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-colors"
+        <button
+          onClick={handleDiveIn}
+          disabled={!ready}
+          className="px-4 py-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm font-medium hover:bg-cyan-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Launch App
-        </Link>
+          {authenticated ? 'Launch App' : 'Connect'}
+        </button>
       </header>
 
       {/* Hero */}
@@ -49,15 +65,16 @@ export default function Home() {
           </p>
 
           {/* CTA */}
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold hover:from-cyan-400 hover:to-teal-400 transition-all glow-md hover:glow-lg"
+          <button
+            onClick={handleDiveIn}
+            disabled={!ready}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold hover:from-cyan-400 hover:to-teal-400 transition-all glow-md hover:glow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>Dive In</span>
+            <span>{authenticated ? 'Go to Dashboard' : 'Dive In'}</span>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
-          </Link>
+          </button>
 
           {/* Trust badges */}
           <div className="mt-12 flex items-center justify-center gap-6 text-xs text-slate-600">
