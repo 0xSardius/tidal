@@ -1,16 +1,33 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/lib/hooks/useWallet';
-export const dynamic = 'force-dynamic';
+import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
 
 export default function Home() {
   const router = useRouter();
   const { ready, authenticated, login } = useWallet();
+  const { isLoaded, hasSelected } = useRiskDepth();
+
+  // Redirect authenticated users
+  useEffect(() => {
+    if (ready && authenticated && isLoaded) {
+      if (hasSelected) {
+        router.push('/dashboard');
+      } else {
+        router.push('/onboard');
+      }
+    }
+  }, [ready, authenticated, isLoaded, hasSelected, router]);
 
   const handleDiveIn = () => {
     if (authenticated) {
-      router.push('/dashboard');
+      if (hasSelected) {
+        router.push('/dashboard');
+      } else {
+        router.push('/onboard');
+      }
     } else {
       login();
     }

@@ -112,13 +112,15 @@ Phase 1: Foundation (Days 1-2)
 - [x] Privy + Coinbase Smart Wallet integration
 - [x] useWallet hook with SSR handling
 - [x] Wallet connection UI in sidebar
+- [x] Risk depth selection screen (/onboard)
+- [x] useRiskDepth hook for preference storage
+- [x] Auth flow: landing → onboard → dashboard
 
 ### In Progress
-- [ ] Risk depth selection screen (Shallows/Mid/Deep)
+- [ ] Test full onboarding flow
 
 ### Up Next
-- [ ] Test wallet connection with Privy app ID
-- [ ] Phase 2: Li.Fi integration
+- [ ] Phase 2: Li.Fi integration (Days 3-4)
 
 ### Blockers
 (none)
