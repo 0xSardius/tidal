@@ -180,12 +180,76 @@ Phase 5: Integration & Polish
 - [ ] Error handling and loading states
 - [ ] Demo polish and testing
 
-### Code Review Needed
-Before proceeding, review these files for:
-- Security (wallet interactions, approvals)
-- Mock data that needs real implementation
-- AI SDK v6 patterns correctness
-- Component integration
+### Code Review Order
+Execute in this order before proceeding:
+
+1. **`lib/ai/tools.ts`** - Tool definitions, mock data → real API calls
+2. **`lib/aave.ts`** - Contract ABIs, addresses, helper functions
+3. **`lib/hooks/useAave.ts`** - AAVE hook implementation (currently mock)
+4. **`components/chat/ChatPanel.tsx`** - AI SDK v6 integration correctness
+5. **`components/chat/ActionCard.tsx`** - Transaction approval UI → real execution
+6. **`app/api/chat/route.ts`** - Chat API endpoint
+
+---
+
+## Prize Strategy Assessment
+
+### Target: Li.Fi Prize ($5-10K)
+
+**Current Status: ⚠️ AT RISK**
+
+| Requirement | Status | Risk |
+|-------------|--------|------|
+| Deep Li.Fi SDK integration | SDK exists, AI tools use **mock data** | 🔴 High |
+| Working demo | No real transactions execute | 🔴 High |
+| Li.Fi attribution in UI | Not visible | 🟡 Medium |
+| Novel use case | AI-first DeFi ✓ | 🟢 Low |
+| End-to-end flow | Broken (mock → no tx) | 🔴 High |
+
+### Critical Gaps
+
+**Gap 1: Li.Fi Integration is Surface-Level**
+- AI tools return hardcoded mock rates
+- Need: Call real Li.Fi API in tool execute functions
+
+**Gap 2: No Transaction Execution**
+- ActionCard logs to console, doesn't trigger wallet
+- Need: wagmi sendTransaction on approval
+
+**Gap 3: Li.Fi Not Visible in UI**
+- No "Powered by Li.Fi" badge
+- RouteDisplay exists but not used in chat
+- Need: Show route visualization for every swap
+
+### Must-Do Before Deadline
+1. Wire AI tools to real Li.Fi API (replace mock data)
+2. Show RouteDisplay in chat when AI suggests swaps
+3. Add Li.Fi branding ("Routes optimized by Li.Fi")
+4. Execute at least one real transaction (testnet OK)
+
+### Nice-to-Have
+- Cross-chain swap demo (Li.Fi strength)
+- Multi-DEX route comparison visual
+- Gas optimization messaging
+
+---
+
+## UI/UX Assessment
+
+### Claude Cowork Comparison
+
+| Cowork Feature | Tidal Status | Gap |
+|----------------|--------------|-----|
+| 3-panel layout | ✅ Matches | - |
+| Conversation list (left) | ⚠️ "Pools" unclear | Clarify purpose |
+| Chat with AI (center) | ✅ Matches | - |
+| Artifacts panel (right) | ⚠️ Static portfolio | Should show AI-generated artifacts |
+| Dynamic artifacts from AI | ⚠️ ActionCard is inline | Consider moving to right panel |
+
+### Recommendation
+Move ActionCard (transaction previews) to right panel as "artifacts" - makes AI-generated actions more prominent and Cowork-like.
+
+---
 
 ### Blockers
 (none)
