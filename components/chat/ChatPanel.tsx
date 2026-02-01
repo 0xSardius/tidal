@@ -44,7 +44,8 @@ export function ChatPanel() {
   ];
 
   const { messages, sendMessage, status } = useChat({
-    messages: initialMessages,
+    api: '/api/chat',
+    initialMessages,
   });
 
   const isLoading = status === 'streaming' || status === 'submitted';
@@ -58,10 +59,10 @@ export function ChatPanel() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    sendMessage(
-      { text: input },
-      { body: { context } } // Send fresh context with each message
-    );
+    sendMessage({
+      content: input,
+      data: { context }, // Send fresh context with each message
+    });
     setInput('');
   };
 

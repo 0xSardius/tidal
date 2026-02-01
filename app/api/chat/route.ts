@@ -8,7 +8,9 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
-    const { messages, context } = await req.json();
+    const { messages, data } = await req.json();
+    // Context comes from sendMessage({ data: { context } })
+    const context = data?.context;
 
     // Build context from request
     const userContext = {
