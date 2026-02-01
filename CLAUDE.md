@@ -125,9 +125,11 @@ User Request → Check Risk Depth → Filter Strategies →
 ## Scratchpad
 
 ### Current Phase
-Phase 1: Foundation (Days 1-2)
+Phase 5: Integration & Polish
 
 ### Completed
+
+**Phase 1: Foundation**
 - [x] Project initialized with Next.js 16
 - [x] CLAUDE.md created with build plan
 - [x] Core deps installed (Privy, wagmi, viem, @lifi/sdk, ai, @ai-sdk/anthropic)
@@ -135,23 +137,55 @@ Phase 1: Foundation (Days 1-2)
 - [x] 3-panel layout shell (sidebar, chat, dashboard)
 - [x] Dark ocean theme with bioluminescent accents
 - [x] Landing page with "Dive In" CTA
+
+**Phase 2: Auth & Wallet**
 - [x] Privy + Coinbase Smart Wallet integration
 - [x] useWallet hook with SSR handling
 - [x] Wallet connection UI in sidebar
 - [x] Risk depth selection screen (/onboard)
 - [x] useRiskDepth hook for preference storage
 - [x] Auth flow: landing → onboard → dashboard
+
+**Phase 2: Li.Fi Integration**
 - [x] Li.Fi SDK wrapper (lib/lifi.ts)
 - [x] Li.Fi API routes (/api/lifi/quote, /api/lifi/routes)
 - [x] useLifiSwap hook for React integration
 - [x] RouteDisplay and SwapPreview components
 
-### In Progress
-- [ ] Build yield strategies registry (lib/strategies.ts)
+**Phase 3: AAVE Integration**
+- [x] Yield strategies registry (lib/strategies.ts)
+- [x] AAVE V3 ABIs and contract addresses (lib/aave.ts)
+- [x] AAVE helper functions (prepareSupplyTx, prepareWithdrawTx, rayToApy)
+- [x] useAave hooks (lib/hooks/useAave.ts) - currently mock data
+- [x] AAVE rates API endpoint (/api/aave/rates)
+- [x] Dashboard components (AavePositions, YieldRates, PortfolioPanelWrapper)
 
-### Up Next
-- [ ] Phase 3: AAVE integration (Days 5-6)
-- [ ] Phase 4: AI Agent with Li.Fi + AAVE tools (Days 7-8)
+**Phase 4: AI Agent**
+- [x] AI tools defined (lib/ai/tools.ts): getQuote, getAaveRates, prepareSupply, prepareWithdraw, prepareSwapAndSupply
+- [x] System prompt builder (lib/ai/prompts.ts)
+- [x] Chat API route with streaming (/api/chat)
+- [x] ChatPanel with AI SDK v6 (message parts, tool invocations)
+- [x] ActionCard for tool approval UI
+
+### In Progress
+- [ ] Wire up real AAVE contract reads in useAave hook
+- [ ] Wire up real Li.Fi quotes in AI tools
+- [ ] Transaction execution flow (approve → execute)
+
+### Up Next (Phase 5: Integration)
+- [ ] Connect AI tools to real Li.Fi/AAVE data
+- [ ] Implement transaction execution via wagmi
+- [ ] Dashboard shows real wallet positions
+- [ ] End-to-end flow: Chat → Recommendation → Wallet Sign → Success
+- [ ] Error handling and loading states
+- [ ] Demo polish and testing
+
+### Code Review Needed
+Before proceeding, review these files for:
+- Security (wallet interactions, approvals)
+- Mock data that needs real implementation
+- AI SDK v6 patterns correctness
+- Component integration
 
 ### Blockers
 (none)
@@ -160,4 +194,5 @@ Phase 1: Foundation (Days 1-2)
 - Mainnet budget: $20-50 for demo transactions
 - Team: 2 people
 - Deadline: Feb 10, 2026
-- Build passes, routes: `/` (landing), `/dashboard` (3-panel app)
+- Build passes, routes: `/` (landing), `/onboard`, `/dashboard`
+- AI SDK v6.0.64 required breaking changes from skill docs (v6.0.42)
