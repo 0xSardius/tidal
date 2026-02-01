@@ -1,5 +1,14 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { parseUnits, formatUnits } from 'viem';
+import { getSwapQuote, BASE_TOKENS, type TokenSymbol } from '@/lib/lifi';
+
+// Type for context passed from API route
+interface ToolContext {
+  walletAddress?: string;
+  chainId?: number;
+  riskDepth?: string;
+}
 
 /**
  * Get a swap quote from Li.Fi
@@ -11,24 +20,78 @@ export const getQuoteTool = tool({
     toToken: z.enum(['USDC', 'WETH', 'ETH', 'DAI']).describe('Token to swap to'),
     amount: z.string().describe('Amount to swap (in human readable format, e.g., "100" for 100 USDC)'),
   }),
-  execute: async (input) => {
+  execute: async (input, options) => {
     const { fromToken, toToken, amount } = input;
-    // In production, this would call the Li.Fi API
-    // For now, return mock data that shows the integration
-    const mockRate = fromToken === 'USDC' && toToken === 'WETH' ? 0.00045 :
-                     fromToken === 'WETH' && toToken === 'USDC' ? 2200 : 1;
+    const ctx = options.experimental_context as ToolContext | undefined;
 
-    return {
-      fromToken,
-      toToken,
-      fromAmount: amount,
-      toAmount: (parseFloat(amount) * mockRate).toFixed(6),
-      rate: mockRate,
-      priceImpact: 0.05,
-      estimatedGas: '0.0001 ETH',
-      route: `${fromToken} → Li.Fi Aggregator → ${toToken}`,
-      provider: 'Li.Fi',
-    };
+    // Check if wallet is connected
+    if (!ctx?.walletAddress) {
+      return {
+        error: true,
+        message: 'Please connect your wallet first to get a quote.',
+      };
+    }
+
+    // Get token info
+    const fromTokenInfo = BASE_TOKENS[fromToken as TokenSymbol];
+    const toTokenInfo = BASE_TOKENS[toToken as TokenSymbol];
+
+    if (!fromTokenInfo || !toTokenInfo) {
+      return {
+        error: true,
+        message: `Token ${fromToken} or ${toToken} not supported.`,
+      };
+    }
+
+    try {
+      // Convert human-readable amount to wei/smallest unit
+      const fromAmountWei = parseUnits(amount, fromTokenInfo.decimals).toString();
+
+      // Call real Li.Fi API
+      const result = await getSwapQuote({
+        fromToken: fromTokenInfo.address,
+        toToken: toTokenInfo.address,
+        fromAmount: fromAmountWei,
+        fromChain: ctx.chainId || 84532,
+        toChain: ctx.chainId || 84532,
+        fromAddress: ctx.walletAddress,
+      });
+
+      if (!result.success || !result.quote) {
+        return {
+          error: true,
+          message: result.error || 'Failed to get quote from Li.Fi',
+        };
+      }
+
+      // Format the response
+      const toAmountFormatted = formatUnits(
+        BigInt(result.estimate!.toAmount),
+        toTokenInfo.decimals
+      );
+
+      // Calculate gas cost from estimate
+      const gasCosts = result.estimate!.gasCosts;
+      const totalGasUsd = gasCosts?.reduce((sum, gc) => sum + parseFloat(gc.amountUSD || '0'), 0) || 0;
+
+      return {
+        fromToken,
+        toToken,
+        fromAmount: amount,
+        toAmount: parseFloat(toAmountFormatted).toFixed(6),
+        rate: parseFloat(toAmountFormatted) / parseFloat(amount),
+        estimatedGas: totalGasUsd > 0 ? `$${totalGasUsd.toFixed(2)}` : 'Included in quote',
+        route: `${fromToken} → Li.Fi (${result.quote.tool}) → ${toToken}`,
+        provider: 'Li.Fi',
+        toolUsed: result.quote.tool,
+      };
+    } catch (error) {
+      console.error('Li.Fi quote error:', error);
+      return {
+        error: true,
+        message: error instanceof Error ? error.message : 'Failed to get quote',
+      };
+    }
   },
 });
 

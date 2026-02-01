@@ -29,6 +29,12 @@ export async function POST(req: Request) {
       system: systemPrompt,
       messages,
       tools: tidalTools,
+      // Pass context to tool execute functions
+      experimental_context: {
+        walletAddress: context?.walletAddress,
+        chainId: 84532, // Base Sepolia
+        riskDepth: userContext.riskDepth,
+      },
     });
 
     // AI SDK v6.0.64+: Use toUIMessageStreamResponse() for tools
