@@ -30,9 +30,10 @@ export async function POST(req: Request) {
       messages,
       tools: tidalTools,
       // Pass context to tool execute functions
+      // Use Base mainnet (8453) for Li.Fi - they don't support testnets
       experimental_context: {
         walletAddress: context?.walletAddress,
-        chainId: 84532, // Base Sepolia
+        chainId: context?.chainId || 8453, // Base mainnet for Li.Fi
         riskDepth: userContext.riskDepth,
       },
     });

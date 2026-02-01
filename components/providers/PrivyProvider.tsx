@@ -1,7 +1,8 @@
 'use client';
 
 import { PrivyProvider as PrivyAuthProvider } from '@privy-io/react-auth';
-import { WagmiProvider } from '@privy-io/wagmi';
+import { WagmiProvider as PrivyWagmiProvider } from '@privy-io/wagmi';
+import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { base, baseSepolia } from 'viem/chains';
 import { useState, useEffect } from 'react';
@@ -15,20 +16,17 @@ export function PrivyProvider({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  // During SSR or before mount, render children without providers
-  // This prevents hydration issues and prerendering errors
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
-  // Dev fallback - show UI without Privy auth
-  if (!appId) {
+  // During SSR or before mount, provide minimal wagmi context
+  // This allows wagmi hooks to work without Privy auth
+  if (!mounted || !appId) {
     return (
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </WagmiProvider>
     );
   }
 
@@ -59,9 +57,9 @@ export function PrivyProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={wagmiConfig}>
+        <PrivyWagmiProvider config={wagmiConfig}>
           {children}
-        </WagmiProvider>
+        </PrivyWagmiProvider>
       </QueryClientProvider>
     </PrivyAuthProvider>
   );

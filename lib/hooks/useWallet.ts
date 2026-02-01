@@ -18,21 +18,6 @@ const erc20BalanceOfAbi = [
   },
 ] as const;
 
-// Default values for SSR/unmounted state
-const defaultValues = {
-  ready: false,
-  authenticated: false,
-  user: null,
-  address: undefined as `0x${string}` | undefined,
-  displayAddress: null as string | null,
-  isConnected: false,
-  embeddedWallet: undefined,
-  usdcBalance: '0.00',
-  ethBalance: '0.0000',
-  login: () => {},
-  logout: () => {},
-};
-
 export function useWallet() {
   const [mounted, setMounted] = useState(false);
 
@@ -40,15 +25,7 @@ export function useWallet() {
     setMounted(true);
   }, []);
 
-  // Return default values during SSR
-  if (!mounted) {
-    return defaultValues;
-  }
-
-  return useWalletInternal();
-}
-
-function useWalletInternal() {
+  // Always call all hooks unconditionally (Rules of Hooks)
   const { ready, authenticated, user, login, logout } = usePrivy();
   const { wallets } = useWallets();
   const { address, isConnected } = useAccount();
@@ -83,6 +60,23 @@ function useWalletInternal() {
   const usdcBalance = usdcBalanceRaw
     ? Number(formatUnits(usdcBalanceRaw, TOKENS.USDC.decimals)).toFixed(2)
     : '0.00';
+
+  // Return default values during SSR (after hooks are called)
+  if (!mounted) {
+    return {
+      ready: false,
+      authenticated: false,
+      user: null,
+      address: undefined as `0x${string}` | undefined,
+      displayAddress: null as string | null,
+      isConnected: false,
+      embeddedWallet: undefined,
+      usdcBalance: '0.00',
+      ethBalance: '0.0000',
+      login: () => {},
+      logout: () => {},
+    };
+  }
 
   return {
     // Auth state
