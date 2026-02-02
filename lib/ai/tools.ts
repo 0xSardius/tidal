@@ -3,13 +3,6 @@ import { z } from 'zod';
 import { parseUnits, formatUnits } from 'viem';
 import { getSwapQuote, BASE_TOKENS, type TokenSymbol } from '@/lib/lifi';
 
-// Type for context passed from API route
-interface ToolContext {
-  walletAddress?: string;
-  chainId?: number;
-  riskDepth?: string;
-}
-
 /**
  * Get a swap quote from Li.Fi
  */
@@ -20,17 +13,13 @@ export const getQuoteTool = tool({
     toToken: z.enum(['USDC', 'WETH', 'ETH', 'DAI']).describe('Token to swap to'),
     amount: z.string().describe('Amount to swap (in human readable format, e.g., "100" for 100 USDC)'),
   }),
-  execute: async (input, options) => {
+  execute: async (input) => {
     const { fromToken, toToken, amount } = input;
-    const ctx = options.experimental_context as ToolContext | undefined;
 
-    // Check if wallet is connected
-    if (!ctx?.walletAddress) {
-      return {
-        error: true,
-        message: 'Please connect your wallet first to get a quote.',
-      };
-    }
+    // Note: In production, wallet address would come from session/auth
+    // For now, use a placeholder - the frontend will handle actual execution
+    const walletAddress = '0x0000000000000000000000000000000000000000';
+    const chainId = 8453; // Base mainnet
 
     // Get token info
     const fromTokenInfo = BASE_TOKENS[fromToken as TokenSymbol];
@@ -52,9 +41,9 @@ export const getQuoteTool = tool({
         fromToken: fromTokenInfo.address,
         toToken: toTokenInfo.address,
         fromAmount: fromAmountWei,
-        fromChain: ctx.chainId || 84532,
-        toChain: ctx.chainId || 84532,
-        fromAddress: ctx.walletAddress,
+        fromChain: chainId,
+        toChain: chainId,
+        fromAddress: walletAddress,
       });
 
       if (!result.success || !result.quote) {

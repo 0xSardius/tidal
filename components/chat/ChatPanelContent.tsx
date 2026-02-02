@@ -1,6 +1,6 @@
 'use client';
 
-import { useChat } from '@ai-sdk/react';
+import { useChat, type Message } from '@ai-sdk/react';
 import { useEffect, useRef, useState, FormEvent } from 'react';
 import { useAccount } from 'wagmi';
 import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
@@ -8,8 +8,22 @@ import { useAavePositions } from '@/lib/hooks/useAave';
 import { ActionCard } from './ActionCard';
 import { RISK_DEPTHS } from '@/lib/constants';
 
+// Helper to get text content from message (handles both v6 parts and legacy content)
+function getMessageText(message: Message): string {
+  // Check for v6 parts array first
+  if ('parts' in message && Array.isArray(message.parts)) {
+    return message.parts
+      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+      .map((part) => part.text)
+      .join('');
+  }
+  // Fall back to content string
+  return typeof message.content === 'string' ? message.content : '';
+}
+
 export function ChatPanelContent() {
   const [input, setInput] = useState('');
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get context for AI
@@ -43,9 +57,12 @@ export function ChatPanelContent() {
     ],
   });
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages - scroll container only, not page
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages]);
 
   const handleSubmit = (e: FormEvent) => {
@@ -85,11 +102,13 @@ export function ChatPanelContent() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-        {messages.map((message) => (
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        {messages.map((message) => {
+          const textContent = getMessageText(message);
+          return (
           <div key={message.id} className="space-y-2">
             {/* Text content */}
-            {message.content && (
+            {textContent && (
               <div
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
@@ -121,7 +140,7 @@ export function ChatPanelContent() {
                     </div>
                   )}
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {message.content}
+                    {textContent}
                   </div>
                 </div>
               </div>
@@ -232,7 +251,8 @@ export function ChatPanelContent() {
               </div>
             )}
           </div>
-        ))}
+        );})}
+
 
         {/* Loading indicator */}
         {isLoading && (
