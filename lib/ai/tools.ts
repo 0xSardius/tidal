@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { parseUnits, formatUnits } from 'viem';
 import { getSwapQuote, BASE_TOKENS, type TokenSymbol } from '@/lib/lifi';
 
+// Supported token symbols for validation
+const TOKEN_SYMBOLS = ['USDC', 'WETH', 'ETH', 'DAI'] as const;
+
 /**
  * Get a swap quote from Li.Fi
  */
@@ -162,6 +165,53 @@ export const prepareWithdrawTool = tool({
 });
 
 /**
+ * Prepare a swap transaction for execution via Li.Fi
+ * This returns the data needed for the frontend to execute the swap
+ */
+export const prepareSwapTool = tool({
+  description: 'Prepare a token swap for execution. Use this when the user confirms they want to execute a swap. Returns transaction data for user approval.',
+  inputSchema: z.object({
+    fromToken: z.enum(TOKEN_SYMBOLS).describe('Token to swap from'),
+    toToken: z.enum(TOKEN_SYMBOLS).describe('Token to swap to'),
+    amount: z.string().describe('Amount to swap (human readable)'),
+  }),
+  execute: async (input) => {
+    const { fromToken, toToken, amount } = input;
+    const chainId = 8453; // Base mainnet
+
+    const fromTokenInfo = BASE_TOKENS[fromToken as TokenSymbol];
+    const toTokenInfo = BASE_TOKENS[toToken as TokenSymbol];
+
+    if (!fromTokenInfo || !toTokenInfo) {
+      return {
+        error: true,
+        message: `Token ${fromToken} or ${toToken} not supported.`,
+      };
+    }
+
+    // Return the swap action for the frontend to execute
+    // Frontend will fetch a fresh quote with user's address before executing
+    return {
+      action: 'swap',
+      provider: 'Li.Fi',
+      fromToken,
+      toToken,
+      fromTokenAddress: fromTokenInfo.address,
+      toTokenAddress: toTokenInfo.address,
+      amount,
+      fromDecimals: fromTokenInfo.decimals,
+      toDecimals: toTokenInfo.decimals,
+      chainId,
+      note: 'Li.Fi will find the best route across multiple DEXs.',
+      risks: [
+        'Swap rates may vary slightly from quote',
+        'Transaction requires gas fees (~$0.01-0.05 on Base)',
+      ],
+    };
+  },
+});
+
+/**
  * Prepare a swap + supply combo transaction
  */
 export const prepareSwapAndSupplyTool = tool({
@@ -207,5 +257,6 @@ export const tidalTools = {
   getAaveRates: getAaveRatesTool,
   prepareSupply: prepareSupplyTool,
   prepareWithdraw: prepareWithdrawTool,
+  prepareSwap: prepareSwapTool,
   prepareSwapAndSupply: prepareSwapAndSupplyTool,
 };

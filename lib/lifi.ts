@@ -1,12 +1,54 @@
-import { createConfig, getQuote, getRoutes, executeRoute, type Route, type QuoteRequest, type RoutesRequest } from '@lifi/sdk';
+import {
+  createConfig,
+  getQuote,
+  getRoutes,
+  executeRoute,
+  convertQuoteToRoute,
+  EVM,
+  type Route,
+  type LiFiStep,
+  type QuoteRequest,
+  type RoutesRequest
+} from '@lifi/sdk';
 import { base, baseSepolia } from 'viem/chains';
+import { getWalletClient, switchChain } from '@wagmi/core';
+import { wagmiConfig } from './wagmi';
 
-// Initialize Li.Fi SDK
-createConfig({
-  integrator: 'tidal-defi',
-  // API key is optional for basic usage
-  apiKey: process.env.LIFI_API_KEY,
-});
+// Initialize Li.Fi SDK with wagmi providers
+let isConfigured = false;
+
+export function configureLifi() {
+  if (isConfigured) return;
+
+  createConfig({
+    integrator: 'tidal-defi',
+    apiKey: process.env.LIFI_API_KEY,
+    providers: [
+      EVM({
+        // Cast to any to handle type compatibility between wagmi and Li.Fi SDK
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        getWalletClient: () => getWalletClient(wagmiConfig as any),
+        switchChain: async (chainId) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const chain = await switchChain(wagmiConfig as any, { chainId });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return getWalletClient(wagmiConfig as any, { chainId: chain.id });
+        },
+      }),
+    ],
+  });
+
+  isConfigured = true;
+}
+
+// Initialize on module load for server-side (quote fetching only)
+// Client-side will re-configure with wallet when needed
+if (typeof window === 'undefined') {
+  createConfig({
+    integrator: 'tidal-defi',
+    apiKey: process.env.LIFI_API_KEY,
+  });
+}
 
 // Supported chains for Tidal
 export const SUPPORTED_CHAINS = [base.id, baseSepolia.id];
@@ -131,16 +173,52 @@ export async function getSwapRoutes(params: {
 }
 
 /**
- * Execute a swap route
+ * Execute a swap route - must be called from client-side with wallet connected
  */
 export async function executeSwapRoute(
   route: Route,
   updateCallback?: (status: RouteExecutionStatus) => void
 ) {
+  // Ensure Li.Fi is configured with wallet providers
+  configureLifi();
+
   try {
     const result = await executeRoute(route, {
       updateRouteHook: (updatedRoute) => {
         // Track execution progress
+        const status = getRouteExecutionStatus(updatedRoute);
+        updateCallback?.(status);
+      },
+    });
+    return {
+      success: true,
+      result,
+    };
+  } catch (error) {
+    console.error('Li.Fi execution error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to execute swap',
+    };
+  }
+}
+
+/**
+ * Execute a swap from a quote - converts quote to route first
+ */
+export async function executeSwapFromQuote(
+  quote: LiFiStep,
+  updateCallback?: (status: RouteExecutionStatus) => void
+) {
+  // Ensure Li.Fi is configured with wallet providers
+  configureLifi();
+
+  try {
+    // Convert quote to route format
+    const route = convertQuoteToRoute(quote);
+
+    const result = await executeRoute(route, {
+      updateRouteHook: (updatedRoute) => {
         const status = getRouteExecutionStatus(updatedRoute);
         updateCallback?.(status);
       },
@@ -241,3 +319,6 @@ export function describeRoute(route: Route): string {
 
   return `${descriptions.join(' → ')} (${[totalGas, duration].filter(Boolean).join(', ')})`;
 }
+
+// Re-export types for use in other files
+export type { Route, LiFiStep };

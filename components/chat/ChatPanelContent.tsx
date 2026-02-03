@@ -1,6 +1,6 @@
 'use client';
 
-import { useChat, type Message } from '@ai-sdk/react';
+import { useChat, type UIMessage } from '@ai-sdk/react';
 import { useEffect, useRef, useState, FormEvent } from 'react';
 import { useAccount } from 'wagmi';
 import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
@@ -8,17 +8,38 @@ import { useAavePositions } from '@/lib/hooks/useAave';
 import { ActionCard } from './ActionCard';
 import { RISK_DEPTHS } from '@/lib/constants';
 
-// Helper to get text content from message (handles both v6 parts and legacy content)
-function getMessageText(message: Message): string {
-  // Check for v6 parts array first
-  if ('parts' in message && Array.isArray(message.parts)) {
-    return message.parts
-      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
-      .map((part) => part.text)
-      .join('');
-  }
-  // Fall back to content string
-  return typeof message.content === 'string' ? message.content : '';
+// Tool invocation type for v6 - matches ToolUIPart and DynamicToolUIPart
+interface ToolPart {
+  type: string;
+  toolCallId: string;
+  toolName?: string;
+  state: string;
+  input?: unknown;
+  output?: unknown;
+}
+
+// Helper to get text content from message (v6 uses parts array)
+function getMessageText(message: UIMessage): string {
+  if (!message.parts) return '';
+  return message.parts
+    .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+    .map((part) => part.text)
+    .join('');
+}
+
+// Helper to check if a part is a tool part
+function isToolPart(part: unknown): part is ToolPart {
+  if (!part || typeof part !== 'object') return false;
+  const p = part as Record<string, unknown>;
+  return typeof p.type === 'string' &&
+         (p.type.startsWith('tool-') || p.type === 'dynamic-tool') &&
+         typeof p.toolCallId === 'string';
+}
+
+// Helper to get tool invocations from message parts
+function getToolInvocations(message: UIMessage): ToolPart[] {
+  if (!message.parts) return [];
+  return message.parts.filter(isToolPart) as ToolPart[];
 }
 
 export function ChatPanelContent() {
@@ -45,17 +66,11 @@ export function ChatPanelContent() {
 
   const depthConfig = RISK_DEPTHS[riskDepth ?? 'shallows'];
 
-  // useChat with initial welcome message
-  const { messages, sendMessage, isLoading, error } = useChat({
-    api: '/api/chat',
-    initialMessages: [
-      {
-        id: 'welcome',
-        role: 'assistant',
-        content: getWelcomeMessage(riskDepth ?? 'shallows'),
-      },
-    ],
-  });
+  // useChat - defaults to /api/chat endpoint
+  const { messages, sendMessage, status, error } = useChat();
+
+  // v6 uses status instead of isLoading
+  const isLoading = status === 'submitted' || status === 'streaming';
 
   // Auto-scroll to bottom on new messages - scroll container only, not page
   useEffect(() => {
@@ -69,10 +84,10 @@ export function ChatPanelContent() {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    sendMessage({
-      content: input,
-      data: { context },
-    });
+    sendMessage(
+      { text: input },
+      { body: { data: { context } } }
+    );
     setInput('');
   };
 
@@ -103,8 +118,28 @@ export function ChatPanelContent() {
 
       {/* Messages */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        {/* Welcome message when no messages yet */}
+        {messages.length === 0 && (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-white/5 text-slate-300 rounded-bl-md">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/5">
+                <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <span className="text-xs font-medium text-cyan-400">Tidal</span>
+              </div>
+              <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                {getWelcomeMessage(riskDepth ?? 'shallows')}
+              </div>
+            </div>
+          </div>
+        )}
+
         {messages.map((message) => {
           const textContent = getMessageText(message);
+          const toolInvocations = getToolInvocations(message);
           return (
           <div key={message.id} className="space-y-2">
             {/* Text content */}
@@ -147,11 +182,14 @@ export function ChatPanelContent() {
             )}
 
             {/* Tool invocations */}
-            {message.toolInvocations && message.toolInvocations.length > 0 && (
+            {toolInvocations.length > 0 && (
               <div className="space-y-2">
-                {message.toolInvocations.map((tool, idx) => {
-                  // Show loading state for pending tool calls
-                  if (tool.state === 'call' || tool.state === 'partial-call') {
+                {toolInvocations.map((tool, idx) => {
+                  // Get tool name from type (e.g., 'tool-prepareSwap' -> 'prepareSwap')
+                  const toolName = tool.toolName || tool.type.replace('tool-', '');
+
+                  // Show loading state for pending tool calls (v6 states)
+                  if (tool.state === 'input-streaming' || tool.state === 'input-available') {
                     return (
                       <div
                         key={idx}
@@ -172,24 +210,34 @@ export function ChatPanelContent() {
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                           />
                         </svg>
-                        Checking {tool.toolName}...
+                        Checking {toolName}...
                       </div>
                     );
                   }
 
-                  // Show result
-                  if (tool.state === 'result') {
-                    const result = tool.result as Record<string, unknown>;
+                  // Show result (v6: output-available instead of result)
+                  if (tool.state === 'output-available') {
+                    const result = tool.output as Record<string, unknown>;
 
-                    // ActionCard for supply/withdraw actions
-                    if (result.action && ['supply', 'withdraw', 'swap_and_supply'].includes(result.action as string)) {
+                    // ActionCard for supply/withdraw/swap actions
+                    if (result.action && ['supply', 'withdraw', 'swap', 'swap_and_supply'].includes(result.action as string)) {
                       return (
                         <ActionCard
                           key={idx}
                           action={result.action as string}
                           protocol={result.protocol as string | undefined}
+                          provider={result.provider as string | undefined}
                           token={result.token as string | undefined}
                           amount={result.amount as string | undefined}
+                          // Swap-specific props
+                          fromToken={result.fromToken as string | undefined}
+                          toToken={result.toToken as string | undefined}
+                          fromTokenAddress={result.fromTokenAddress as string | undefined}
+                          toTokenAddress={result.toTokenAddress as string | undefined}
+                          fromDecimals={result.fromDecimals as number | undefined}
+                          toDecimals={result.toDecimals as number | undefined}
+                          chainId={result.chainId as number | undefined}
+                          // Display props
                           estimatedApy={result.estimatedApy as number | undefined}
                           estimatedYearlyReturn={result.estimatedYearlyReturn as string | undefined}
                           steps={result.steps as ActionCardSteps}
@@ -200,6 +248,12 @@ export function ChatPanelContent() {
                           }}
                           onReject={() => {
                             console.log('Rejected:', result);
+                          }}
+                          onSuccess={(txHash) => {
+                            console.log('Transaction success:', txHash);
+                          }}
+                          onError={(error) => {
+                            console.error('Transaction error:', error);
                           }}
                         />
                       );
@@ -221,16 +275,16 @@ export function ChatPanelContent() {
                           <div className="text-xs text-slate-500 mt-1">
                             Rate: 1 {result.fromToken as string} = {(result.rate as number).toFixed(6)} {result.toToken as string}
                           </div>
-                          {result.estimatedGas && (
+                          {result.estimatedGas ? (
                             <div className="text-xs text-slate-500">
                               Gas: {result.estimatedGas as string}
                             </div>
-                          )}
-                          {result.route && (
+                          ) : null}
+                          {result.route ? (
                             <div className="text-xs text-cyan-400/70 mt-1">
                               {result.route as string}
                             </div>
-                          )}
+                          ) : null}
                         </div>
                       );
                     }
@@ -241,7 +295,7 @@ export function ChatPanelContent() {
                         key={idx}
                         className="ml-7 p-2 bg-slate-800/30 rounded text-xs text-slate-500"
                       >
-                        {tool.toolName}: {JSON.stringify(result).slice(0, 100)}...
+                        {toolName}: {JSON.stringify(result).slice(0, 100)}...
                       </div>
                     );
                   }
