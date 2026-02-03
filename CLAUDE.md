@@ -125,129 +125,139 @@ User Request → Check Risk Depth → Filter Strategies →
 ## Scratchpad
 
 ### Current Phase
-Phase 5: Integration & Polish
+**Phase 5: Final Sprint** (Feb 2-11, 2026)
 
 ### Completed
 
-**Phase 1: Foundation**
-- [x] Project initialized with Next.js 16
-- [x] CLAUDE.md created with build plan
-- [x] Core deps installed (Privy, wagmi, viem, @lifi/sdk, ai, @ai-sdk/anthropic)
-- [x] Environment config (.env.example, .env.local)
-- [x] 3-panel layout shell (sidebar, chat, dashboard)
+**Foundation & Auth**
+- [x] Next.js 16 + React 19 + Tailwind v4
+- [x] 3-panel layout (sidebar, chat, dashboard)
 - [x] Dark ocean theme with bioluminescent accents
-- [x] Landing page with "Dive In" CTA
-
-**Phase 2: Auth & Wallet**
+- [x] Landing page → Onboard → Dashboard flow
 - [x] Privy + Coinbase Smart Wallet integration
-- [x] useWallet hook with SSR handling
-- [x] Wallet connection UI in sidebar
-- [x] Risk depth selection screen (/onboard)
-- [x] useRiskDepth hook for preference storage
-- [x] Auth flow: landing → onboard → dashboard
+- [x] Risk depth selection (Shallows/Mid-Depth/Deep Water)
 
-**Phase 2: Li.Fi Integration**
+**Li.Fi Integration**
 - [x] Li.Fi SDK wrapper (lib/lifi.ts)
 - [x] Li.Fi API routes (/api/lifi/quote, /api/lifi/routes)
-- [x] useLifiSwap hook for React integration
+- [x] useLifiSwap hook
 - [x] RouteDisplay and SwapPreview components
+- [x] getQuote tool calls real Li.Fi API
 
-**Phase 3: AAVE Integration**
-- [x] Yield strategies registry (lib/strategies.ts)
-- [x] AAVE V3 ABIs and contract addresses (lib/aave.ts)
-- [x] AAVE helper functions (prepareSupplyTx, prepareWithdrawTx, rayToApy)
-- [x] useAave hooks (lib/hooks/useAave.ts) - currently mock data
-- [x] AAVE rates API endpoint (/api/aave/rates)
-- [x] Dashboard components (AavePositions, YieldRates, PortfolioPanelWrapper)
+**AAVE Integration**
+- [x] AAVE V3 ABIs and helpers (lib/aave.ts)
+- [x] useAave hooks (currently mock data)
+- [x] Dashboard components (AavePositions, YieldRates)
 
-**Phase 4: AI Agent**
-- [x] AI tools defined (lib/ai/tools.ts): getQuote, getAaveRates, prepareSupply, prepareWithdraw, prepareSwapAndSupply
-- [x] System prompt builder (lib/ai/prompts.ts)
-- [x] Chat API route with streaming (/api/chat)
-- [x] ChatPanel with AI SDK v6 (message parts, tool invocations)
+**AI Chat**
+- [x] AI tools: getQuote, getAaveRates, prepareSupply, prepareWithdraw, prepareSwapAndSupply
+- [x] Chat API with streaming (/api/chat)
+- [x] AI SDK v6.0.65 integration (toUIMessageStreamResponse)
+- [x] ChatPanel with message parts handling
 - [x] ActionCard for tool approval UI
-
-### In Progress
-- [ ] Wire up real AAVE contract reads in useAave hook
-- [ ] Wire up real Li.Fi quotes in AI tools
-- [ ] Transaction execution flow (approve → execute)
-
-### Up Next (Phase 5: Integration)
-- [ ] Connect AI tools to real Li.Fi/AAVE data
-- [ ] Implement transaction execution via wagmi
-- [ ] Dashboard shows real wallet positions
-- [ ] End-to-end flow: Chat → Recommendation → Wallet Sign → Success
-- [ ] Error handling and loading states
-- [ ] Demo polish and testing
-
-### Code Review Order
-Execute in this order before proceeding:
-
-1. **`lib/ai/tools.ts`** - Tool definitions, mock data → real API calls
-2. **`lib/aave.ts`** - Contract ABIs, addresses, helper functions
-3. **`lib/hooks/useAave.ts`** - AAVE hook implementation (currently mock)
-4. **`components/chat/ChatPanel.tsx`** - AI SDK v6 integration correctness
-5. **`components/chat/ActionCard.tsx`** - Transaction approval UI → real execution
-6. **`app/api/chat/route.ts`** - Chat API endpoint
+- [x] Fixed hydration errors (dynamic imports with ssr:false)
+- [x] Fixed scroll behavior
 
 ---
 
-## Prize Strategy Assessment
+## 🚀 FINAL SPRINT PLAN (Feb 2-11)
 
-### Target: Li.Fi Prize ($5-10K)
+### Phase 1: Core Execution (Days 1-3) — Feb 2-4
 
-**Current Status: ⚠️ AT RISK**
+**Day 1 (Feb 2) - Li.Fi Transaction Execution**
+- [ ] Wire ActionCard "Approve" to wagmi sendTransaction
+- [ ] Build transaction from Li.Fi quote data
+- [ ] Add pending/success/error states to ActionCard
+- [ ] **TEST:** Execute $1 USDC→ETH swap on Base mainnet
 
-| Requirement | Status | Risk |
-|-------------|--------|------|
-| Deep Li.Fi SDK integration | SDK exists, AI tools use **mock data** | 🔴 High |
-| Working demo | No real transactions execute | 🔴 High |
-| Li.Fi attribution in UI | Not visible | 🟡 Medium |
-| Novel use case | AI-first DeFi ✓ | 🟢 Low |
-| End-to-end flow | Broken (mock → no tx) | 🔴 High |
+**Day 2 (Feb 3) - AAVE Real Data**
+- [ ] Fix AAVE contract addresses for Base mainnet
+- [ ] Wire useAave.ts to read real APYs from contracts
+- [ ] Display live rates in YieldRates component
+- [ ] **TEST:** See real AAVE rates in dashboard
 
-### Critical Gaps
+**Day 3 (Feb 4) - AAVE Supply/Withdraw**
+- [ ] Wire prepareSupply tool to return real tx data
+- [ ] ActionCard executes AAVE supply via wagmi
+- [ ] Handle token approval flow (ERC20 approve)
+- [ ] **TEST:** Supply $5 USDC to AAVE, verify position appears
 
-**Gap 1: Li.Fi Integration is Surface-Level**
-- AI tools return hardcoded mock rates
-- Need: Call real Li.Fi API in tool execute functions
+### Phase 2: Li.Fi Polish (Days 4-5) — Feb 5-6
 
-**Gap 2: No Transaction Execution**
-- ActionCard logs to console, doesn't trigger wallet
-- Need: wagmi sendTransaction on approval
+**Day 4 (Feb 5) - Li.Fi Branding**
+- [ ] Add "Powered by Li.Fi" badge to quote cards
+- [ ] Show RouteDisplay in chat for every swap quote
+- [ ] Display DEX/aggregator used in route
+- [ ] **TEST:** Screenshot-ready UI with Li.Fi attribution
 
-**Gap 3: Li.Fi Not Visible in UI**
-- No "Powered by Li.Fi" badge
-- RouteDisplay exists but not used in chat
-- Need: Show route visualization for every swap
+**Day 5 (Feb 6) - Route Visualization**
+- [ ] Show multi-hop routes visually
+- [ ] Display gas estimates prominently
+- [ ] Show rate comparison vs direct swap
+- [ ] **TEST:** Ask for quote, see full route breakdown
 
-### Must-Do Before Deadline
-1. Wire AI tools to real Li.Fi API (replace mock data)
-2. Show RouteDisplay in chat when AI suggests swaps
-3. Add Li.Fi branding ("Routes optimized by Li.Fi")
-4. Execute at least one real transaction (testnet OK)
+### Phase 3: Integration & Flow (Days 6-7) — Feb 7-8
 
-### Nice-to-Have
-- Cross-chain swap demo (Li.Fi strength)
-- Multi-DEX route comparison visual
-- Gas optimization messaging
+**Day 6 (Feb 7) - Swap+Supply Combo**
+- [ ] prepareSwapAndSupply executes real 2-step flow
+- [ ] Li.Fi swap → AAVE supply as single user action
+- [ ] Show progress through both steps
+- [ ] **TEST:** "Swap ETH to USDC and supply to AAVE" works
+
+**Day 7 (Feb 8) - Error Handling**
+- [ ] Insufficient balance messaging
+- [ ] Rejected transaction handling
+- [ ] Network/RPC error recovery
+- [ ] Slippage warnings
+- [ ] **TEST:** Intentionally trigger failures, verify graceful handling
+
+### Phase 4: Demo Polish (Days 8-9) — Feb 9-10
+
+**Day 8 (Feb 9) - Demo Script**
+- [ ] Write exact 3-minute demo script
+- [ ] Pre-fund wallet with demo amounts
+- [ ] Test full flow 3 times
+- [ ] **TEST:** Record practice run
+
+**Day 9 (Feb 10) - Final Polish**
+- [ ] UI tweaks and animations
+- [ ] Loading state improvements
+- [ ] Copy refinement (ocean metaphors)
+- [ ] **TEST:** Full demo with teammate
+
+### Day 10 (Feb 11) - DEADLINE
+- [ ] Morning: Final test on fresh browser
+- [ ] Submit project
+- [ ] Record backup demo video
 
 ---
 
-## UI/UX Assessment
+## 🎬 Demo Golden Path (3 minutes)
 
-### Claude Cowork Comparison
+```
+[0:00] Landing "/" → Click "Dive In" → Privy login
+[0:20] Onboard → Select "Shallows" (conservative)
+[0:35] Dashboard loads → Welcome message from Tidal
+[0:45] Chat: "What can I earn on my USDC?"
+[1:00] AI shows AAVE rates with live APY data
+[1:15] Chat: "Get a quote for swapping 10 USDC to ETH"
+[1:30] Li.Fi quote appears with route visualization + branding
+[1:45] Chat: "Supply 20 USDC to AAVE"
+[2:00] ActionCard appears → Click Approve → Transaction executes
+[2:30] Portfolio updates showing position + projected yield
+[2:45] Wrap: "Tidal - AI-powered DeFi for everyone"
+```
 
-| Cowork Feature | Tidal Status | Gap |
-|----------------|--------------|-----|
-| 3-panel layout | ✅ Matches | - |
-| Conversation list (left) | ⚠️ "Pools" unclear | Clarify purpose |
-| Chat with AI (center) | ✅ Matches | - |
-| Artifacts panel (right) | ⚠️ Static portfolio | Should show AI-generated artifacts |
-| Dynamic artifacts from AI | ⚠️ ActionCard is inline | Consider moving to right panel |
+---
 
-### Recommendation
-Move ActionCard (transaction previews) to right panel as "artifacts" - makes AI-generated actions more prominent and Cowork-like.
+## Li.Fi Prize Requirements
+
+| Requirement | Status | Action |
+|-------------|--------|--------|
+| Real Li.Fi transactions | ⚠️ Quotes work, no execution | Day 1: Wire ActionCard |
+| Li.Fi attribution visible | ❌ Missing | Day 4: Add badges |
+| Route visualization | ⚠️ Component exists, unused | Day 4-5: Show in chat |
+| Novel use case | ✅ AI-first DeFi | - |
 
 ---
 
@@ -255,8 +265,6 @@ Move ActionCard (transaction previews) to right panel as "artifacts" - makes AI-
 (none)
 
 ### Notes
-- Mainnet budget: $20-50 for demo transactions
-- Team: 2 people
-- Deadline: Feb 10, 2026
-- Build passes, routes: `/` (landing), `/onboard`, `/dashboard`
-- AI SDK v6.0.64 required breaking changes from skill docs (v6.0.42)
+- Mainnet budget: $20-50 USDC on Base
+- Deadline: Feb 11, 2026
+- AI SDK v6.0.65 uses toUIMessageStreamResponse() not toDataStreamResponse()
