@@ -157,6 +157,8 @@ User Request → Check Risk Depth → Filter Strategies →
 - [x] ActionCard for tool approval UI
 - [x] Fixed hydration errors (dynamic imports with ssr:false)
 - [x] Fixed scroll behavior
+- [x] **CRITICAL FIX**: `await convertToModelMessages()` in chat API (async function!)
+- [x] **FIX**: Privy/wagmi integration - must use `@privy-io/wagmi` exports for createConfig and WagmiProvider
 
 ---
 
@@ -268,3 +270,5 @@ User Request → Check Risk Depth → Filter Strategies →
 - Mainnet budget: $20-50 USDC on Base
 - Deadline: Feb 11, 2026
 - AI SDK v6.0.65 uses toUIMessageStreamResponse() not toDataStreamResponse()
+- **AI SDK v6 Pattern**: `convertToModelMessages()` is ASYNC - must `await` it!
+- **Privy/wagmi**: Import `createConfig` and `WagmiProvider` from `@privy-io/wagmi`, NOT from `wagmi`
