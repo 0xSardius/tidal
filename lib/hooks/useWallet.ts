@@ -2,7 +2,7 @@
 
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useAccount, useBalance, useReadContract } from 'wagmi';
-import { baseSepolia } from 'viem/chains';
+import { base } from 'viem/chains';
 import { formatUnits } from 'viem';
 import { useState, useEffect } from 'react';
 import { CONTRACTS, TOKENS } from '@/lib/constants';
@@ -36,7 +36,7 @@ export function useWallet() {
     abi: erc20BalanceOfAbi,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
-    chainId: baseSepolia.id,
+    chainId: base.id,
     query: {
       enabled: !!address,
     },
@@ -45,7 +45,7 @@ export function useWallet() {
   // Get ETH balance
   const { data: ethBalance } = useBalance({
     address,
-    chainId: baseSepolia.id,
+    chainId: base.id,
   });
 
   // Get the embedded wallet (Coinbase Smart Wallet)

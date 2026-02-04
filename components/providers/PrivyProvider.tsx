@@ -38,9 +38,9 @@ export function PrivyProvider({ children }: { children: React.ReactNode }) {
           },
         },
 
-        // Default chain
-        defaultChain: baseSepolia,
-        supportedChains: [baseSepolia, base],
+        // Default chain - Base Mainnet for demo
+        defaultChain: base,
+        supportedChains: [base, baseSepolia],
       }}
     >
       <QueryClientProvider client={queryClient}>

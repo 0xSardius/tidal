@@ -1,17 +1,17 @@
 import { base, baseSepolia } from 'viem/chains';
 
-// Chain configuration
-export const SUPPORTED_CHAINS = [baseSepolia, base] as const;
-export const DEFAULT_CHAIN = baseSepolia;
+// Chain configuration - Base Mainnet for demo
+export const SUPPORTED_CHAINS = [base, baseSepolia] as const;
+export const DEFAULT_CHAIN = base;
 
-// Contract addresses on Base Sepolia
+// Contract addresses on Base Mainnet
 export const CONTRACTS = {
-  // AAVE V3 on Base Sepolia
-  AAVE_POOL: '0x07eA79F68B2B3df564D0A34F8e19D9B1e339814b' as const,
+  // AAVE V3 on Base Mainnet
+  AAVE_POOL: '0xA238Dd80C259a72e81d7e4664a9801593F98d1c5' as const,
   AAVE_POOL_DATA_PROVIDER: '0x2d8A3C5677189723C4cB8873CfC9C8976FDF38Ac' as const,
 
-  // Test tokens on Base Sepolia
-  USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const,
+  // Tokens on Base Mainnet
+  USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as const,
   WETH: '0x4200000000000000000000000000000000000006' as const,
 } as const;
 

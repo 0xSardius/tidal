@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:ethglobal.com)",
+      "WebSearch",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(git restore:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(grep:*)",
+      "Bash(tasklist:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:www.plasma.to)",
+      "Bash(npm ls:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout:*)",
+      "Bash(wmic process:*)",
+      "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force; Remove-Item -Recurse -Force ''C:\\\\Users\\\\justi\\\\Desktop\\\\projects\\\\2026\\\\hackathons\\\\eth-global-hack-money-2026\\\\tidal\\\\.next'' -ErrorAction SilentlyContinue; Write-Host ''Cleaned up''\")",
+      "WebFetch(domain:docs.li.fi)",
+      "WebFetch(domain:docs.privy.io)",
+      "Bash(git pull:*)"
+    ]
+  }
+}

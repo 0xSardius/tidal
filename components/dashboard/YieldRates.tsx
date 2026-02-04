@@ -92,7 +92,7 @@ export function YieldRates() {
       </div>
 
       <p className="text-xs text-slate-500 text-center">
-        Rates from AAVE V3 on Base Sepolia
+        Rates from AAVE V3 on Base
       </p>
     </div>
   );

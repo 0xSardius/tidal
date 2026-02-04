@@ -144,7 +144,7 @@ export function ActionCard({
 
       try {
         const result = await executeAaveSupply({
-          chainId: chainId || 84532, // Base Sepolia
+          chainId: chainId || 8453, // Base Mainnet
           token: token as AaveToken,
           amount,
           userAddress: address,
@@ -190,7 +190,7 @@ export function ActionCard({
 
       try {
         const result = await executeAaveWithdraw({
-          chainId: chainId || 84532,
+          chainId: chainId || 8453,
           token: token as AaveToken,
           amount,
           userAddress: address,

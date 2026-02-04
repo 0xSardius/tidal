@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createPublicClient, http } from 'viem';
-import { baseSepolia } from 'viem/chains';
+import { base } from 'viem/chains';
 import {
   AAVE_DATA_PROVIDER_ABI,
   getAaveAddresses,
@@ -9,15 +9,15 @@ import {
 } from '@/lib/aave';
 
 const client = createPublicClient({
-  chain: baseSepolia,
-  transport: http(process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC || 'https://sepolia.base.org'),
+  chain: base,
+  transport: http(process.env.NEXT_PUBLIC_BASE_MAINNET_RPC || 'https://mainnet.base.org'),
 });
 
 const TOKENS: AaveToken[] = ['USDC', 'WETH'];
 
 export async function GET() {
   try {
-    const addresses = getAaveAddresses(baseSepolia.id);
+    const addresses = getAaveAddresses(base.id);
     const rates: Record<string, { apy: number; token: string }> = {};
 
     for (const token of TOKENS) {
@@ -53,7 +53,7 @@ export async function GET() {
       success: true,
       rates,
       timestamp: Date.now(),
-      chain: 'base-sepolia',
+      chain: 'base-mainnet',
     });
   } catch (error) {
     console.error('AAVE rates API error:', error);

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { baseSepolia } from 'viem/chains';
+import { base } from 'viem/chains';
 import { maxUint256 } from 'viem';
 import {
   AAVE_DATA_PROVIDER_ABI,
@@ -16,7 +16,7 @@ import {
   type AavePosition,
 } from '@/lib/aave';
 
-const DEFAULT_CHAIN_ID = baseSepolia.id;
+const DEFAULT_CHAIN_ID = base.id; // Base Mainnet
 
 /**
  * Hook to read AAVE reserve data (APY, total supplied)

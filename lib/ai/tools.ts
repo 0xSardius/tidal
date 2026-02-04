@@ -109,7 +109,7 @@ export const getAaveRatesTool = tool({
           token,
           supplyApy: data.rates[token]?.apy || 0,
           protocol: 'AAVE V3',
-          chain: 'Base Sepolia',
+          chain: 'Base',
           live: true, // Indicates this is live data
         }));
       }
@@ -128,7 +128,7 @@ export const getAaveRatesTool = tool({
       token,
       supplyApy: fallbackRates[token] || 0,
       protocol: 'AAVE V3',
-      chain: 'Base Sepolia',
+      chain: 'Base',
       live: false, // Indicates this is fallback data
     }));
   },
@@ -169,8 +169,8 @@ export const prepareSupplyTool = tool({
       estimatedApy: apy,
       estimatedYearlyReturn: `${yearlyReturn} ${token}`,
       requiresApproval: true,
-      chain: 'Base Sepolia',
-      chainId: 84532, // Base Sepolia chain ID
+      chain: 'Base',
+      chainId: 8453, // Base chain ID
       risks: [
         'Smart contract risk (AAVE is audited)',
         'Funds can be withdrawn anytime',
@@ -195,7 +195,7 @@ export const prepareWithdrawTool = tool({
       protocol: 'AAVE V3',
       token,
       amount,
-      chain: 'Base Sepolia',
+      chain: 'Base',
       note: amount === 'max' ? 'This will withdraw your entire position including earned interest.' : null,
     };
   },
@@ -280,7 +280,7 @@ export const prepareSwapAndSupplyTool = tool({
         },
       ],
       totalEstimatedApy: toToken === 'USDC' ? 3.5 : 2.1,
-      chain: 'Base Sepolia',
+      chain: 'Base',
       note: 'This is a 2-step transaction. You will need to approve each step.',
     };
   },

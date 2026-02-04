@@ -100,7 +100,7 @@ export function PortfolioPanel() {
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="p-2 rounded-lg bg-white/5">
             <div className="text-slate-500">Network</div>
-            <div className="text-slate-300 font-mono">Base Sepolia</div>
+            <div className="text-slate-300 font-mono">Base</div>
           </div>
           <div className="p-2 rounded-lg bg-white/5">
             <div className="text-slate-500">Status</div>
