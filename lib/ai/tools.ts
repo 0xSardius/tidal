@@ -88,7 +88,7 @@ export const getQuoteTool = tool({
 });
 
 /**
- * Get current AAVE yield rates
+ * Get current AAVE yield rates (real contract data)
  */
 export const getAaveRatesTool = tool({
   description: 'Get current APY rates from AAVE lending protocol. Use this to show users the yield they can earn.',
@@ -97,8 +97,28 @@ export const getAaveRatesTool = tool({
   }),
   execute: async (input) => {
     const { tokens } = input;
-    // In production, this would call AAVE contracts
-    const rates: Record<string, number> = {
+
+    try {
+      // Fetch real rates from AAVE contracts via our API
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/aave/rates`);
+      const data = await response.json();
+
+      if (data.success && data.rates) {
+        return tokens.map(token => ({
+          token,
+          supplyApy: data.rates[token]?.apy || 0,
+          protocol: 'AAVE V3',
+          chain: 'Base Sepolia',
+          live: true, // Indicates this is live data
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch AAVE rates:', error);
+    }
+
+    // Fallback to static rates if API fails
+    const fallbackRates: Record<string, number> = {
       USDC: 3.5,
       WETH: 2.1,
       DAI: 3.2,
@@ -106,15 +126,16 @@ export const getAaveRatesTool = tool({
 
     return tokens.map(token => ({
       token,
-      supplyApy: rates[token] || 0,
+      supplyApy: fallbackRates[token] || 0,
       protocol: 'AAVE V3',
       chain: 'Base Sepolia',
+      live: false, // Indicates this is fallback data
     }));
   },
 });
 
 /**
- * Prepare a supply transaction for AAVE
+ * Prepare a supply transaction for AAVE (with real APY data)
  */
 export const prepareSupplyTool = tool({
   description: 'Prepare a transaction to supply tokens to AAVE for yield. This returns transaction details for user approval.',
@@ -124,16 +145,32 @@ export const prepareSupplyTool = tool({
   }),
   execute: async (input) => {
     const { token, amount } = input;
-    // Return transaction details for the frontend to execute
+
+    // Fetch real APY from API
+    let apy = token === 'USDC' ? 3.5 : 2.1; // Fallback
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/aave/rates`);
+      const data = await response.json();
+      if (data.success && data.rates?.[token]?.apy) {
+        apy = data.rates[token].apy;
+      }
+    } catch (error) {
+      console.error('Failed to fetch AAVE rate for supply:', error);
+    }
+
+    const yearlyReturn = (parseFloat(amount) * (apy / 100)).toFixed(2);
+
     return {
       action: 'supply',
       protocol: 'AAVE V3',
       token,
       amount,
-      estimatedApy: token === 'USDC' ? 3.5 : 2.1,
-      estimatedYearlyReturn: `${(parseFloat(amount) * (token === 'USDC' ? 0.035 : 0.021)).toFixed(2)} ${token}`,
+      estimatedApy: apy,
+      estimatedYearlyReturn: `${yearlyReturn} ${token}`,
       requiresApproval: true,
       chain: 'Base Sepolia',
+      chainId: 84532, // Base Sepolia chain ID
       risks: [
         'Smart contract risk (AAVE is audited)',
         'Funds can be withdrawn anytime',

@@ -294,3 +294,162 @@ export function describeAaveAction(
     return `Withdraw ${amount} ${token} from AAVE back to your wallet.`;
   }
 }
+
+/**
+ * Status callback for AAVE execution
+ */
+export interface AaveExecutionStatus {
+  status: 'approving' | 'supplying' | 'withdrawing' | 'completed' | 'failed';
+  message: string;
+  txHash?: string;
+}
+
+/**
+ * Execute supply to AAVE (for use in ActionCard)
+ * This function handles the approve + supply flow
+ */
+export async function executeAaveSupply(params: {
+  chainId: number;
+  token: AaveToken;
+  amount: string;
+  userAddress: Address;
+  walletClient: {
+    writeContract: (config: {
+      address: Address;
+      abi: readonly object[];
+      functionName: string;
+      args: readonly unknown[];
+    }) => Promise<`0x${string}`>;
+  };
+  publicClient: {
+    waitForTransactionReceipt: (config: { hash: `0x${string}` }) => Promise<{ status: string }>;
+    readContract: (config: {
+      address: Address;
+      abi: readonly object[];
+      functionName: string;
+      args: readonly unknown[];
+    }) => Promise<bigint>;
+  };
+  onUpdate?: (status: AaveExecutionStatus) => void;
+}): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  const { chainId, token, amount, userAddress, walletClient, publicClient, onUpdate } = params;
+
+  try {
+    const addresses = getAaveAddresses(chainId);
+    const tokenAddress = (addresses.tokens as Record<string, Address>)[token];
+    const decimals = TOKEN_DECIMALS[token];
+    const amountWei = parseUnits(amount, decimals);
+
+    if (!tokenAddress) {
+      throw new Error(`Token ${token} not supported on chain ${chainId}`);
+    }
+
+    // Check allowance first
+    onUpdate?.({ status: 'approving', message: 'Checking allowance...' });
+
+    const allowance = await publicClient.readContract({
+      address: tokenAddress,
+      abi: ERC20_ABI,
+      functionName: 'allowance',
+      args: [userAddress, addresses.pool],
+    });
+
+    // If allowance is insufficient, approve first
+    if (allowance < amountWei) {
+      onUpdate?.({ status: 'approving', message: 'Approve token spending in wallet...' });
+
+      const approveHash = await walletClient.writeContract({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [addresses.pool, amountWei],
+      });
+
+      onUpdate?.({ status: 'approving', message: 'Waiting for approval confirmation...', txHash: approveHash });
+
+      await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    }
+
+    // Execute supply
+    onUpdate?.({ status: 'supplying', message: 'Confirm supply in wallet...' });
+
+    const supplyHash = await walletClient.writeContract({
+      address: addresses.pool,
+      abi: AAVE_POOL_ABI,
+      functionName: 'supply',
+      args: [tokenAddress, amountWei, userAddress, 0],
+    });
+
+    onUpdate?.({ status: 'supplying', message: 'Waiting for confirmation...', txHash: supplyHash });
+
+    await publicClient.waitForTransactionReceipt({ hash: supplyHash });
+
+    onUpdate?.({ status: 'completed', message: 'Supply completed!', txHash: supplyHash });
+
+    return { success: true, txHash: supplyHash };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Supply failed';
+    onUpdate?.({ status: 'failed', message: errorMsg });
+    return { success: false, error: errorMsg };
+  }
+}
+
+/**
+ * Execute withdraw from AAVE (for use in ActionCard)
+ */
+export async function executeAaveWithdraw(params: {
+  chainId: number;
+  token: AaveToken;
+  amount: string | 'max';
+  userAddress: Address;
+  walletClient: {
+    writeContract: (config: {
+      address: Address;
+      abi: readonly object[];
+      functionName: string;
+      args: readonly unknown[];
+    }) => Promise<`0x${string}`>;
+  };
+  publicClient: {
+    waitForTransactionReceipt: (config: { hash: `0x${string}` }) => Promise<{ status: string }>;
+  };
+  onUpdate?: (status: AaveExecutionStatus) => void;
+}): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  const { chainId, token, amount, userAddress, walletClient, publicClient, onUpdate } = params;
+
+  try {
+    const addresses = getAaveAddresses(chainId);
+    const tokenAddress = (addresses.tokens as Record<string, Address>)[token];
+    const decimals = TOKEN_DECIMALS[token];
+
+    // Use max uint for 'max' withdrawal
+    const amountWei = amount === 'max'
+      ? BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
+      : parseUnits(amount, decimals);
+
+    if (!tokenAddress) {
+      throw new Error(`Token ${token} not supported on chain ${chainId}`);
+    }
+
+    onUpdate?.({ status: 'withdrawing', message: 'Confirm withdraw in wallet...' });
+
+    const withdrawHash = await walletClient.writeContract({
+      address: addresses.pool,
+      abi: AAVE_POOL_ABI,
+      functionName: 'withdraw',
+      args: [tokenAddress, amountWei, userAddress],
+    });
+
+    onUpdate?.({ status: 'withdrawing', message: 'Waiting for confirmation...', txHash: withdrawHash });
+
+    await publicClient.waitForTransactionReceipt({ hash: withdrawHash });
+
+    onUpdate?.({ status: 'completed', message: 'Withdrawal completed!', txHash: withdrawHash });
+
+    return { success: true, txHash: withdrawHash };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Withdrawal failed';
+    onUpdate?.({ status: 'failed', message: errorMsg });
+    return { success: false, error: errorMsg };
+  }
+}

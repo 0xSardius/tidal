@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
 import { parseUnits } from 'viem';
 import { getSwapQuote, executeSwapFromQuote, configureLifi, type RouteExecutionStatus } from '@/lib/lifi';
+import { executeAaveSupply, executeAaveWithdraw, type AaveExecutionStatus, type AaveToken } from '@/lib/aave';
 
 interface ActionCardProps {
   action: string;
@@ -62,21 +63,23 @@ export function ActionCard({
   onError,
 }: ActionCardProps) {
   const { address, isConnected } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
   const [status, setStatus] = useState<ExecutionStatus>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [txHash, setTxHash] = useState<string>();
   const [error, setError] = useState<string>();
 
   const handleApprove = async () => {
+    if (!isConnected || !address) {
+      setError('Please connect your wallet first');
+      setStatus('failed');
+      onError?.('Wallet not connected');
+      return;
+    }
+
     // For swap actions, execute via Li.Fi
     if (action === 'swap' && fromTokenAddress && toTokenAddress && amount && fromDecimals) {
-      if (!isConnected || !address) {
-        setError('Please connect your wallet first');
-        setStatus('failed');
-        onError?.('Wallet not connected');
-        return;
-      }
-
       setStatus('quoting');
       setStatusMessage('Getting best rate...');
       setError(undefined);
@@ -132,9 +135,101 @@ export function ActionCard({
         setStatusMessage('Transaction failed');
         onError?.(errorMsg);
       }
-    } else {
-      // For other actions (supply, withdraw), just call the callback
-      // Transaction execution will be added later
+    }
+    // For AAVE supply actions
+    else if (action === 'supply' && token && amount && walletClient && publicClient) {
+      setStatus('pending');
+      setStatusMessage('Preparing supply...');
+      setError(undefined);
+
+      try {
+        const result = await executeAaveSupply({
+          chainId: chainId || 84532, // Base Sepolia
+          token: token as AaveToken,
+          amount,
+          userAddress: address,
+          walletClient: walletClient as never,
+          publicClient: publicClient as never,
+          onUpdate: (update: AaveExecutionStatus) => {
+            setStatusMessage(update.message);
+            if (update.txHash) {
+              setTxHash(update.txHash);
+            }
+            if (update.status === 'completed') {
+              setStatus('completed');
+            } else if (update.status === 'failed') {
+              setStatus('failed');
+            } else {
+              setStatus('executing');
+            }
+          },
+        });
+
+        if (result.success) {
+          setStatus('completed');
+          setStatusMessage('Supply completed!');
+          onApprove?.();
+          if (result.txHash) onSuccess?.(result.txHash);
+        } else {
+          throw new Error(result.error || 'Supply failed');
+        }
+      } catch (err) {
+        console.error('Supply error:', err);
+        const errorMsg = err instanceof Error ? err.message : 'Supply failed';
+        setError(errorMsg);
+        setStatus('failed');
+        setStatusMessage('Transaction failed');
+        onError?.(errorMsg);
+      }
+    }
+    // For AAVE withdraw actions
+    else if (action === 'withdraw' && token && amount && walletClient && publicClient) {
+      setStatus('pending');
+      setStatusMessage('Preparing withdrawal...');
+      setError(undefined);
+
+      try {
+        const result = await executeAaveWithdraw({
+          chainId: chainId || 84532,
+          token: token as AaveToken,
+          amount,
+          userAddress: address,
+          walletClient: walletClient as never,
+          publicClient: publicClient as never,
+          onUpdate: (update: AaveExecutionStatus) => {
+            setStatusMessage(update.message);
+            if (update.txHash) {
+              setTxHash(update.txHash);
+            }
+            if (update.status === 'completed') {
+              setStatus('completed');
+            } else if (update.status === 'failed') {
+              setStatus('failed');
+            } else {
+              setStatus('executing');
+            }
+          },
+        });
+
+        if (result.success) {
+          setStatus('completed');
+          setStatusMessage('Withdrawal completed!');
+          onApprove?.();
+          if (result.txHash) onSuccess?.(result.txHash);
+        } else {
+          throw new Error(result.error || 'Withdrawal failed');
+        }
+      } catch (err) {
+        console.error('Withdraw error:', err);
+        const errorMsg = err instanceof Error ? err.message : 'Withdrawal failed';
+        setError(errorMsg);
+        setStatus('failed');
+        setStatusMessage('Transaction failed');
+        onError?.(errorMsg);
+      }
+    }
+    // For other/unknown actions, just call the callback
+    else {
       setStatus('pending');
       onApprove?.();
       setTimeout(() => setStatus('idle'), 2000);
