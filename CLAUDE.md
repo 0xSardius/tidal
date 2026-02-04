@@ -267,8 +267,9 @@ User Request → Check Risk Depth → Filter Strategies →
 (none)
 
 ### Notes
-- Mainnet budget: $20-50 USDC on Base
+- **NOW ON BASE MAINNET** - Budget: $20-50 USDC for testing
 - Deadline: Feb 11, 2026
 - AI SDK v6.0.65 uses toUIMessageStreamResponse() not toDataStreamResponse()
 - **AI SDK v6 Pattern**: `convertToModelMessages()` is ASYNC - must `await` it!
 - **Privy/wagmi**: Import `createConfig` and `WagmiProvider` from `@privy-io/wagmi`, NOT from `wagmi`
+- Dashboard uses real AAVE data (positions + APY) - no more hardcoded values
