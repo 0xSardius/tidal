@@ -23,7 +23,8 @@
       "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force; Remove-Item -Recurse -Force ''C:\\\\Users\\\\justi\\\\Desktop\\\\projects\\\\2026\\\\hackathons\\\\eth-global-hack-money-2026\\\\tidal\\\\.next'' -ErrorAction SilentlyContinue; Write-Host ''Cleaned up''\")",
       "WebFetch(domain:docs.li.fi)",
       "WebFetch(domain:docs.privy.io)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "WebFetch(domain:ai-sdk.dev)"
     ]
   }
 }

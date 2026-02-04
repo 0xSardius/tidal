@@ -1,4 +1,4 @@
-import { streamText, convertToModelMessages } from 'ai';
+import { streamText, convertToModelMessages, stepCountIs } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { tidalTools } from '@/lib/ai/tools';
 import { buildSystemPrompt } from '@/lib/ai/prompts';
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
       system: systemPrompt + walletInfo,
       messages: modelMessages,
       tools: tidalTools,
+      stopWhen: stepCountIs(5), // Allow AI to continue after tool calls (up to 5 steps)
     });
 
     return result.toUIMessageStreamResponse();

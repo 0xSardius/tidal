@@ -289,6 +289,43 @@ export function ChatPanelContent() {
                       );
                     }
 
+                    // AAVE rates card (array of rate objects)
+                    if (Array.isArray(result) && result.length > 0 && result[0]?.supplyApy !== undefined) {
+                      return (
+                        <div
+                          key={idx}
+                          className="ml-7 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 text-sm"
+                        >
+                          <div className="flex items-center gap-2 text-slate-400 mb-3">
+                            <span className="text-cyan-400 font-medium">AAVE V3 Rates</span>
+                            {(result[0] as { live?: boolean }).live && (
+                              <span className="flex items-center gap-1 text-xs text-emerald-400">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                Live
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            {(result as Array<{ token: string; supplyApy: number; protocol: string }>).map((rate) => (
+                              <div key={rate.token} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                    rate.token === 'USDC' ? 'bg-blue-500/20 text-blue-400' :
+                                    rate.token === 'WETH' ? 'bg-purple-500/20 text-purple-400' :
+                                    'bg-teal-500/20 text-teal-400'
+                                  }`}>
+                                    {rate.token === 'USDC' ? '$' : rate.token === 'WETH' ? 'Ξ' : rate.token[0]}
+                                  </span>
+                                  <span className="text-slate-300">{rate.token}</span>
+                                </div>
+                                <span className="text-emerald-400 font-medium">{rate.supplyApy.toFixed(2)}% APY</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
                     // Generic tool result
                     return (
                       <div
