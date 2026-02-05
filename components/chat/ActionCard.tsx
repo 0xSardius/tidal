@@ -39,6 +39,7 @@ interface ActionCardProps {
 }
 
 type ExecutionStatus = 'idle' | 'quoting' | 'pending' | 'executing' | 'completed' | 'failed';
+type ComboStep = 0 | 1 | 2; // 0 = not started, 1 = swapping, 2 = supplying
 
 export function ActionCard({
   action,
@@ -71,6 +72,7 @@ export function ActionCard({
   const [statusMessage, setStatusMessage] = useState('');
   const [txHash, setTxHash] = useState<string>();
   const [error, setError] = useState<string>();
+  const [comboStep, setComboStep] = useState<ComboStep>(0);
 
   const isWrongChain = chain?.id !== base.id;
 
@@ -280,6 +282,106 @@ export function ActionCard({
         onError?.(errorMsg);
       }
     }
+    // For swap + supply combo
+    else if (action === 'swap_and_supply' && fromTokenAddress && toTokenAddress && amount && fromDecimals && toDecimals) {
+      if (!walletClient || !publicClient) {
+        setError('Wallet not ready. Please try again.');
+        setStatus('failed');
+        return;
+      }
+
+      setStatus('quoting');
+      setComboStep(1);
+      setStatusMessage('Step 1/2: Getting best swap rate via Li.Fi...');
+      setError(undefined);
+
+      try {
+        // Step 1: Execute swap via Li.Fi
+        configureLifi();
+        const fromAmountWei = parseUnits(amount, fromDecimals).toString();
+        const quoteResult = await getSwapQuote({
+          fromToken: fromTokenAddress,
+          toToken: toTokenAddress,
+          fromAmount: fromAmountWei,
+          fromChain: chainId || 8453,
+          toChain: chainId || 8453,
+          fromAddress: address,
+        });
+
+        if (!quoteResult.success || !quoteResult.quote) {
+          throw new Error(quoteResult.error || 'Failed to get swap quote');
+        }
+
+        setStatus('pending');
+        setStatusMessage('Step 1/2: Confirm swap in your wallet...');
+
+        const swapResult = await executeSwapFromQuote(
+          quoteResult.quote,
+          (update: RouteExecutionStatus) => {
+            setStatus(update.status === 'completed' ? 'executing' :
+                     update.status === 'failed' ? 'failed' : 'executing');
+            setStatusMessage(`Step 1/2: ${update.message}`);
+            if (update.txHash) {
+              setTxHash(update.txHash);
+            }
+          }
+        );
+
+        if (!swapResult.success) {
+          throw new Error(swapResult.error || 'Swap failed');
+        }
+
+        // Step 2: Supply swapped tokens to AAVE
+        setComboStep(2);
+        setStatus('pending');
+        setStatusMessage('Step 2/2: Supplying to AAVE...');
+
+        // Determine supply token and amount
+        // The toToken from the swap is what we supply
+        const supplyToken = toToken as AaveToken;
+        // Use max balance approach - supply whatever we received from swap
+        const supplyAmount = 'max';
+
+        const supplyResult = await executeAaveSupply({
+          chainId: chainId || 8453,
+          token: supplyToken,
+          amount: supplyAmount,
+          userAddress: address,
+          walletClient: walletClient as never,
+          publicClient: publicClient as never,
+          onUpdate: (update: AaveExecutionStatus) => {
+            setStatusMessage(`Step 2/2: ${update.message}`);
+            if (update.txHash) {
+              setTxHash(update.txHash);
+            }
+            if (update.status === 'completed') {
+              setStatus('completed');
+            } else if (update.status === 'failed') {
+              setStatus('failed');
+            } else {
+              setStatus('executing');
+            }
+          },
+        });
+
+        if (supplyResult.success) {
+          setStatus('completed');
+          setStatusMessage('Swap & Supply completed!');
+          setComboStep(0);
+          onApprove?.();
+          if (supplyResult.txHash) onSuccess?.(supplyResult.txHash);
+        } else {
+          throw new Error(supplyResult.error || 'Supply step failed');
+        }
+      } catch (err) {
+        console.error('Swap & Supply error:', err);
+        const errorMsg = err instanceof Error ? err.message : 'Transaction failed';
+        setError(errorMsg);
+        setStatus('failed');
+        setStatusMessage('Transaction failed');
+        onError?.(errorMsg);
+      }
+    }
     // For other/unknown actions, show error
     else {
       console.error('Unknown action or missing data:', { action, token, amount });
@@ -322,7 +424,7 @@ export function ActionCard({
             </p>
           )}
         </div>
-        {action === 'swap' && status !== 'completed' && (
+        {(action === 'swap' || action === 'swap_and_supply') && status !== 'completed' && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-400/20">
             <svg className="w-3 h-3 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" />
@@ -417,20 +519,38 @@ export function ActionCard({
         {/* Multi-step actions */}
         {steps && steps.length > 0 && (
           <div className="space-y-2">
-            {steps.map((step) => (
-              <div
-                key={step.step}
-                className="flex items-start gap-3 p-2 bg-white/5 rounded-lg"
-              >
-                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 text-xs flex items-center justify-center">
-                  {step.step}
-                </span>
-                <div>
-                  <p className="text-sm text-white">{step.description}</p>
-                  <p className="text-xs text-slate-500">via {step.provider}</p>
+            {steps.map((step) => {
+              const isActiveStep = comboStep === step.step && isProcessing;
+              const isCompletedStep = comboStep > step.step || status === 'completed';
+              return (
+                <div
+                  key={step.step}
+                  className={`flex items-start gap-3 p-2 rounded-lg transition-colors ${
+                    isActiveStep ? 'bg-cyan-500/10 border border-cyan-500/20' :
+                    isCompletedStep ? 'bg-emerald-500/5 border border-emerald-500/10' :
+                    'bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <span className={`flex-shrink-0 w-5 h-5 rounded-full text-xs flex items-center justify-center ${
+                    isCompletedStep ? 'bg-emerald-500/20 text-emerald-400' :
+                    isActiveStep ? 'bg-cyan-500/20 text-cyan-400' :
+                    'bg-white/10 text-slate-500'
+                  }`}>
+                    {isCompletedStep ? '\u2713' : step.step}
+                  </span>
+                  <div>
+                    <p className={`text-sm ${isCompletedStep ? 'text-emerald-300' : isActiveStep ? 'text-white' : 'text-slate-300'}`}>{step.description}</p>
+                    <p className="text-xs text-slate-500">via {step.provider}</p>
+                  </div>
+                  {isActiveStep && (
+                    <svg className="w-4 h-4 animate-spin text-cyan-400 ml-auto flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

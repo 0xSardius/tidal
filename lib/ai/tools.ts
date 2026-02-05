@@ -267,28 +267,88 @@ export const prepareSwapAndSupplyTool = tool({
   }),
   execute: async (input) => {
     const { fromToken, toToken, amount } = input;
-    const mockRate = fromToken === 'ETH' && toToken === 'USDC' ? 2200 : 1;
-    const swappedAmount = parseFloat(amount) * mockRate;
+    const chainId = 8453;
+
+    const fromTokenInfo = BASE_TOKENS[fromToken as TokenSymbol];
+    const toTokenInfo = BASE_TOKENS[toToken as TokenSymbol];
+
+    if (!fromTokenInfo || !toTokenInfo) {
+      return {
+        error: true,
+        message: `Token ${fromToken} or ${toToken} not supported.`,
+      };
+    }
+
+    // Get a quote to estimate the swap output
+    let estimatedSwapOutput = amount;
+    try {
+      const fromAmountWei = parseUnits(amount, fromTokenInfo.decimals).toString();
+      const quoteResult = await getSwapQuote({
+        fromToken: fromTokenInfo.address,
+        toToken: toTokenInfo.address,
+        fromAmount: fromAmountWei,
+        fromChain: chainId,
+        toChain: chainId,
+        fromAddress: '0x0000000000000000000000000000000000000000',
+      });
+      if (quoteResult.success && quoteResult.estimate) {
+        estimatedSwapOutput = parseFloat(
+          formatUnits(BigInt(quoteResult.estimate.toAmount), toTokenInfo.decimals)
+        ).toFixed(6);
+      }
+    } catch {
+      // Use fallback estimate
+    }
+
+    // Fetch real APY for the supply step
+    let apy = toToken === 'USDC' ? 3.5 : 2.1;
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/aave/rates`);
+      const data = await response.json();
+      if (data.success && data.rates?.[toToken]?.apy) {
+        apy = data.rates[toToken].apy;
+      }
+    } catch {
+      // Use fallback APY
+    }
+
+    const yearlyReturn = (parseFloat(estimatedSwapOutput) * (apy / 100)).toFixed(2);
 
     return {
       action: 'swap_and_supply',
+      provider: 'Li.Fi + AAVE V3',
+      fromToken,
+      toToken,
+      fromTokenAddress: fromTokenInfo.address,
+      toTokenAddress: toTokenInfo.address,
+      amount,
+      fromDecimals: fromTokenInfo.decimals,
+      toDecimals: toTokenInfo.decimals,
+      chainId,
+      estimatedSwapOutput,
+      estimatedApy: apy,
+      estimatedYearlyReturn: `${yearlyReturn} ${toToken}`,
       steps: [
         {
           step: 1,
           action: 'swap',
-          description: `Swap ${amount} ${fromToken} → ${swappedAmount.toFixed(2)} ${toToken} via Li.Fi`,
+          description: `Swap ${amount} ${fromToken} → ~${estimatedSwapOutput} ${toToken} via Li.Fi`,
           provider: 'Li.Fi',
         },
         {
           step: 2,
           action: 'supply',
-          description: `Supply ${swappedAmount.toFixed(2)} ${toToken} to AAVE`,
+          description: `Supply ~${estimatedSwapOutput} ${toToken} to AAVE at ${apy.toFixed(2)}% APY`,
           provider: 'AAVE V3',
         },
       ],
-      totalEstimatedApy: toToken === 'USDC' ? 3.5 : 2.1,
-      chain: 'Base',
-      note: 'This is a 2-step transaction. You will need to approve each step.',
+      risks: [
+        'Swap rates may vary slightly from estimate',
+        'Smart contract risk (both Li.Fi and AAVE are audited)',
+        'Funds supplied to AAVE can be withdrawn anytime',
+      ],
+      note: 'This is a 2-step transaction: Li.Fi swap then AAVE supply.',
     };
   },
 });
