@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useWalletClient, usePublicClient } from 'wagmi';
+import { useAccount, useWalletClient, usePublicClient, useSwitchChain } from 'wagmi';
 import { parseUnits } from 'viem';
+import { base } from 'viem/chains';
 import { getSwapQuote, executeSwapFromQuote, configureLifi, type RouteExecutionStatus } from '@/lib/lifi';
 import { executeAaveSupply, executeAaveWithdraw, type AaveExecutionStatus, type AaveToken } from '@/lib/aave';
 
@@ -62,13 +63,16 @@ export function ActionCard({
   onSuccess,
   onError,
 }: ActionCardProps) {
-  const { address, isConnected } = useAccount();
-  const { data: walletClient } = useWalletClient();
-  const publicClient = usePublicClient();
+  const { address, isConnected, chain } = useAccount();
+  const { data: walletClient } = useWalletClient({ chainId: base.id });
+  const publicClient = usePublicClient({ chainId: base.id });
+  const { switchChain } = useSwitchChain();
   const [status, setStatus] = useState<ExecutionStatus>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [txHash, setTxHash] = useState<string>();
   const [error, setError] = useState<string>();
+
+  const isWrongChain = chain?.id !== base.id;
 
   const handleApprove = async () => {
     if (!isConnected || !address) {
@@ -76,6 +80,24 @@ export function ActionCard({
       setStatus('failed');
       onError?.('Wallet not connected');
       return;
+    }
+
+    // Check if on correct chain, prompt to switch if not
+    if (isWrongChain) {
+      setStatus('pending');
+      setStatusMessage('Switching to Base network...');
+      try {
+        await switchChain({ chainId: base.id });
+        // After switching, user needs to click again
+        setStatus('idle');
+        setStatusMessage('');
+        setError('Switched to Base. Please click Approve again.');
+        return;
+      } catch (err) {
+        setError('Please switch to Base network in your wallet');
+        setStatus('failed');
+        return;
+      }
     }
 
     // For swap actions, execute via Li.Fi
@@ -450,6 +472,8 @@ export function ActionCard({
               </span>
             ) : !isConnected ? (
               'Connect Wallet'
+            ) : isWrongChain ? (
+              'Switch to Base'
             ) : (
               'Approve'
             )}
