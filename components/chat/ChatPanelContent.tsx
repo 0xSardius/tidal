@@ -334,15 +334,8 @@ export function ChatPanelContent() {
                       );
                     }
 
-                    // Generic tool result
-                    return (
-                      <div
-                        key={idx}
-                        className="ml-7 p-2 bg-slate-800/30 rounded text-xs text-slate-500"
-                      >
-                        {toolName}: {JSON.stringify(result).slice(0, 100)}...
-                      </div>
-                    );
+                    // Generic tool result - hide from UI (the AI will explain in text)
+                    return null;
                   }
 
                   return null;
