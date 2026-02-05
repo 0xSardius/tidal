@@ -319,12 +319,17 @@ export function ActionCard({
           {displayProvider && (
             <p className="text-xs text-slate-400">
               via {displayProvider}
-              {action === 'swap' && (
-                <span className="ml-1 text-cyan-400">• Powered by Li.Fi</span>
-              )}
             </p>
           )}
         </div>
+        {action === 'swap' && status !== 'completed' && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-400/20">
+            <svg className="w-3 h-3 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-[10px] font-bold tracking-wide text-cyan-300">Li.Fi</span>
+          </div>
+        )}
         {status === 'completed' && (
           <span className="text-emerald-400 text-sm">✓ Done</span>
         )}
@@ -332,13 +337,52 @@ export function ActionCard({
 
       {/* Content */}
       <div className="p-4 space-y-3">
-        {/* Swap details */}
+        {/* Swap route visualization */}
         {action === 'swap' && fromToken && toToken && amount && (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-400">Swap</span>
-            <span className="text-sm font-medium text-white">
-              {amount} {fromToken} → {toToken}
-            </span>
+          <div className="p-3 rounded-lg bg-white/[0.03] border border-white/5">
+            <div className="flex items-center gap-3">
+              {/* From */}
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ring-1 ring-white/5 ${
+                  fromToken === 'USDC' || fromToken === 'USDT' ? 'bg-blue-500/20 text-blue-400' :
+                  fromToken === 'ETH' || fromToken === 'WETH' ? 'bg-purple-500/20 text-purple-400' :
+                  'bg-teal-500/20 text-teal-400'
+                }`}>
+                  {fromToken === 'USDC' || fromToken === 'USDT' ? '$' : fromToken === 'ETH' || fromToken === 'WETH' ? '\u039E' : fromToken[0]}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-mono text-slate-200">{amount}</div>
+                  <div className="text-[10px] text-slate-500">{fromToken}</div>
+                </div>
+              </div>
+              {/* Arrow */}
+              <div className="flex-shrink-0">
+                <svg width="40" height="16" viewBox="0 0 40 16" className="text-cyan-400/50">
+                  <line x1="0" y1="8" x2="30" y2="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3">
+                    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1.5s" repeatCount="indefinite" />
+                  </line>
+                  <polygon points="30,3 40,8 30,13" fill="currentColor" opacity="0.7" />
+                </svg>
+              </div>
+              {/* To */}
+              <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                <div className="min-w-0 text-right">
+                  <div className="text-sm font-mono text-emerald-400">{toToken}</div>
+                  <div className="text-[10px] text-slate-500">Receiving</div>
+                </div>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ring-1 ring-white/5 ${
+                  toToken === 'USDC' || toToken === 'USDT' ? 'bg-blue-500/20 text-blue-400' :
+                  toToken === 'ETH' || toToken === 'WETH' ? 'bg-purple-500/20 text-purple-400' :
+                  'bg-teal-500/20 text-teal-400'
+                }`}>
+                  {toToken === 'USDC' || toToken === 'USDT' ? '$' : toToken === 'ETH' || toToken === 'WETH' ? '\u039E' : toToken[0]}
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
+              <span className="text-[10px] text-slate-600">Routed via Li.Fi across multiple DEXs</span>
+              <span className="text-[10px] text-cyan-500/50 font-medium">Powered by Li.Fi</span>
+            </div>
           </div>
         )}
 

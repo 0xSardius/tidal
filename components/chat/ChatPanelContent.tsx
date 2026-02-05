@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi';
 import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
 import { useAavePositions } from '@/lib/hooks/useAave';
 import { ActionCard } from './ActionCard';
+import { LifiQuoteCard } from './LifiQuoteCard';
 import { RISK_DEPTHS } from '@/lib/constants';
 
 // Tool invocation type for v6 - matches ToolUIPart and DynamicToolUIPart
@@ -262,30 +263,18 @@ export function ChatPanelContent() {
                     // Li.Fi quote card
                     if (result.fromToken && result.toToken && result.rate) {
                       return (
-                        <div
+                        <LifiQuoteCard
                           key={idx}
-                          className="ml-7 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 text-sm"
-                        >
-                          <div className="flex items-center gap-2 text-slate-400 mb-2">
-                            <span className="text-cyan-400 font-medium">Li.Fi Quote</span>
-                          </div>
-                          <div className="text-slate-200">
-                            {result.fromAmount as string} {result.fromToken as string} → {result.toAmount as string} {result.toToken as string}
-                          </div>
-                          <div className="text-xs text-slate-500 mt-1">
-                            Rate: 1 {result.fromToken as string} = {(result.rate as number).toFixed(6)} {result.toToken as string}
-                          </div>
-                          {result.estimatedGas ? (
-                            <div className="text-xs text-slate-500">
-                              Gas: {result.estimatedGas as string}
-                            </div>
-                          ) : null}
-                          {result.route ? (
-                            <div className="text-xs text-cyan-400/70 mt-1">
-                              {result.route as string}
-                            </div>
-                          ) : null}
-                        </div>
+                          fromToken={result.fromToken as string}
+                          toToken={result.toToken as string}
+                          fromAmount={result.fromAmount as string}
+                          toAmount={result.toAmount as string}
+                          rate={result.rate as number}
+                          estimatedGas={result.estimatedGas as string | undefined}
+                          route={result.route as string | undefined}
+                          toolUsed={result.toolUsed as string | undefined}
+                          executionTime={result.executionTime as string | undefined}
+                        />
                       );
                     }
 

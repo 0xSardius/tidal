@@ -66,6 +66,12 @@ export const getQuoteTool = tool({
       const gasCosts = result.estimate!.gasCosts;
       const totalGasUsd = gasCosts?.reduce((sum, gc) => sum + parseFloat(gc.amountUSD || '0'), 0) || 0;
 
+      // Execution time estimate
+      const execDuration = result.estimate!.executionDuration;
+      const executionTime = execDuration
+        ? execDuration < 60 ? `~${execDuration}s` : `~${Math.ceil(execDuration / 60)} min`
+        : undefined;
+
       return {
         fromToken,
         toToken,
@@ -76,6 +82,7 @@ export const getQuoteTool = tool({
         route: `${fromToken} → Li.Fi (${result.quote.tool}) → ${toToken}`,
         provider: 'Li.Fi',
         toolUsed: result.quote.tool,
+        executionTime,
       };
     } catch (error) {
       console.error('Li.Fi quote error:', error);
