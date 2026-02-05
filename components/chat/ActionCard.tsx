@@ -137,7 +137,26 @@ export function ActionCard({
       }
     }
     // For AAVE supply actions
-    else if (action === 'supply' && token && amount && walletClient && publicClient) {
+    else if (action === 'supply') {
+      // Check for missing requirements
+      if (!token || !amount) {
+        setError('Missing token or amount');
+        setStatus('failed');
+        return;
+      }
+      if (!walletClient) {
+        setError('Wallet not ready. Please try again.');
+        setStatus('failed');
+        console.error('walletClient is undefined');
+        return;
+      }
+      if (!publicClient) {
+        setError('Network connection not ready. Please try again.');
+        setStatus('failed');
+        console.error('publicClient is undefined');
+        return;
+      }
+
       setStatus('pending');
       setStatusMessage('Preparing supply...');
       setError(undefined);
@@ -183,7 +202,18 @@ export function ActionCard({
       }
     }
     // For AAVE withdraw actions
-    else if (action === 'withdraw' && token && amount && walletClient && publicClient) {
+    else if (action === 'withdraw') {
+      if (!token || !amount) {
+        setError('Missing token or amount');
+        setStatus('failed');
+        return;
+      }
+      if (!walletClient || !publicClient) {
+        setError('Wallet not ready. Please try again.');
+        setStatus('failed');
+        return;
+      }
+
       setStatus('pending');
       setStatusMessage('Preparing withdrawal...');
       setError(undefined);
@@ -228,11 +258,11 @@ export function ActionCard({
         onError?.(errorMsg);
       }
     }
-    // For other/unknown actions, just call the callback
+    // For other/unknown actions, show error
     else {
-      setStatus('pending');
-      onApprove?.();
-      setTimeout(() => setStatus('idle'), 2000);
+      console.error('Unknown action or missing data:', { action, token, amount });
+      setError(`Unknown action type: ${action}`);
+      setStatus('failed');
     }
   };
 
