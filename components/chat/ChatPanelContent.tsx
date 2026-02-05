@@ -283,33 +283,52 @@ export function ChatPanelContent() {
                       return (
                         <div
                           key={idx}
-                          className="ml-7 p-3 bg-slate-800/50 rounded-lg border border-slate-700/50 text-sm"
+                          className="ml-7 rounded-xl overflow-hidden border border-cyan-500/20 bg-gradient-to-br from-slate-800/80 via-slate-800/60 to-slate-900/40 text-sm"
                         >
-                          <div className="flex items-center gap-2 text-slate-400 mb-3">
-                            <span className="text-cyan-400 font-medium">AAVE V3 Rates</span>
+                          <div className="px-4 py-2.5 bg-gradient-to-r from-cyan-500/10 to-transparent border-b border-cyan-500/15 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-400/20 to-teal-500/20 flex items-center justify-center">
+                                <svg className="w-3 h-3 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                  <path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              </div>
+                              <span className="text-xs font-medium text-cyan-300">AAVE V3 Yield Rates</span>
+                            </div>
                             {(result[0] as { live?: boolean }).live && (
-                              <span className="flex items-center gap-1 text-xs text-emerald-400">
+                              <span className="flex items-center gap-1.5 text-xs text-emerald-400">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                Live
+                                Live on Base
                               </span>
                             )}
                           </div>
-                          <div className="space-y-2">
+                          <div className="p-4 space-y-2.5">
                             {(result as Array<{ token: string; supplyApy: number; protocol: string }>).map((rate) => (
-                              <div key={rate.token} className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              <div key={rate.token} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] border border-white/5">
+                                <div className="flex items-center gap-2.5">
+                                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ring-1 ring-white/5 ${
                                     rate.token === 'USDC' ? 'bg-blue-500/20 text-blue-400' :
                                     rate.token === 'WETH' ? 'bg-purple-500/20 text-purple-400' :
                                     'bg-teal-500/20 text-teal-400'
                                   }`}>
-                                    {rate.token === 'USDC' ? '$' : rate.token === 'WETH' ? 'Ξ' : rate.token[0]}
+                                    {rate.token === 'USDC' ? '$' : rate.token === 'WETH' ? '\u039E' : rate.token[0]}
                                   </span>
-                                  <span className="text-slate-300">{rate.token}</span>
+                                  <div>
+                                    <span className="text-slate-200 font-medium">{rate.token}</span>
+                                    <div className="text-[10px] text-slate-500">{rate.protocol}</div>
+                                  </div>
                                 </div>
-                                <span className="text-emerald-400 font-medium">{rate.supplyApy.toFixed(2)}% APY</span>
+                                <span className="text-emerald-400 font-mono font-medium">{rate.supplyApy.toFixed(2)}%<span className="text-slate-500 ml-1 font-sans text-xs">APY</span></span>
                               </div>
                             ))}
+                          </div>
+                          <div className="px-4 py-2 border-t border-white/5 flex items-center justify-between">
+                            <span className="text-[10px] text-slate-600">Need a different token? Swap via Li.Fi first</span>
+                            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/15">
+                              <svg className="w-2.5 h-2.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              <span className="text-[10px] font-medium text-cyan-400">Li.Fi</span>
+                            </div>
                           </div>
                         </div>
                       );
