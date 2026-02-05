@@ -122,6 +122,82 @@ User Request → Check Risk Depth → Filter Strategies →
 
 ---
 
+## 🎯 Vision: Cross-Chain Yield Optimization
+
+**The Ultimate Value Prop**: Tidal becomes the **AI-powered yield router** that finds the best risk-adjusted returns across ALL chains and moves your funds there automatically via Li.Fi.
+
+### The Problem We Solve
+- Yield opportunities exist across 20+ chains
+- Users don't have time to monitor rates everywhere
+- Bridging manually is complex and error-prone
+- Risk assessment requires expertise
+
+### The Tidal Solution
+```
+User: "Find me the best USDC yield for my risk level"
+
+┌─────────────────────────────────────────────────────────────┐
+│  AI Agent scans multiple chains in real-time                │
+│                                                              │
+│  Base AAVE     4.2% APY  ████████░░  Risk: Low              │
+│  Arbitrum AAVE 3.8% APY  ███████░░░  Risk: Low              │
+│  Optimism Sonne 4.5% APY ████████░░  Risk: Low              │
+│  Polygon AAVE  5.1% APY  ██████████  Risk: Low   ← BEST     │
+│                                                              │
+│  "I found 5.1% APY on Polygon AAVE - that's 0.9% higher     │
+│   than your current position. Want me to move your funds?"  │
+└─────────────────────────────────────────────────────────────┘
+
+Route: Base USDC → Li.Fi (Stargate) → Polygon → AAVE Supply
+Cost: ~$0.50 | Break-even: 4 days | Extra yield: +$37/year
+```
+
+### Why Li.Fi is Critical
+Li.Fi transforms Tidal from "AAVE frontend" to "cross-chain yield optimizer":
+
+| Without Li.Fi | With Li.Fi |
+|---------------|------------|
+| Single chain only | 20+ chains accessible |
+| Manual bridging | One-click cross-chain |
+| Limited opportunities | Best rates anywhere |
+| User finds yields | AI finds yields FOR you |
+
+### Implementation Phases
+
+**Phase 1 (Current - Hackathon)**
+- Single chain (Base) yield via AAVE
+- Li.Fi for token swaps before deposit
+- AI explains and executes
+
+**Phase 2 (Post-Hackathon)**
+- Multi-chain yield comparison (DeFi Llama API)
+- Li.Fi bridges for cross-chain movement
+- AI recommends optimal chain based on:
+  - Current APY
+  - Bridge costs
+  - Gas fees
+  - Break-even analysis
+
+**Phase 3 (Future)**
+- Auto-rebalancing ("Move when APY delta > 1%")
+- Multi-protocol support (Compound, Morpho, etc.)
+- Yield notifications ("Better rate found on Arbitrum")
+- Portfolio optimization across chains
+
+### Competitive Moat
+- **AI-first**: Not just a dashboard, an intelligent advisor
+- **Risk-aware**: Filters by user's comfort level
+- **Cross-chain native**: Li.Fi enables seamless movement
+- **Educational**: Explains every recommendation
+
+### For Judges
+This is not another DeFi dashboard. Tidal is the **interface layer between users and cross-chain DeFi**, powered by:
+- **Li.Fi** for universal routing
+- **AI** for intelligent recommendations
+- **Risk depth** for personalization
+
+---
+
 ## Scratchpad
 
 ### Current Phase
