@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useAccount, useWalletClient, usePublicClient, useSwitchChain } from 'wagmi';
+import { useAccount, usePublicClient, useSwitchChain } from 'wagmi';
+import { getWalletClient } from '@wagmi/core';
 import { parseUnits } from 'viem';
 import { base } from 'viem/chains';
+import { wagmiConfig } from '@/lib/wagmi';
 import { getSwapQuote, executeSwapFromQuote, configureLifi, type RouteExecutionStatus } from '@/lib/lifi';
 import { executeAaveSupply, executeAaveWithdraw, type AaveExecutionStatus, type AaveToken } from '@/lib/aave';
 
@@ -90,7 +92,6 @@ export function ActionCard({
   onError,
 }: ActionCardProps) {
   const { address, isConnected, chain } = useAccount();
-  const { data: walletClient } = useWalletClient({ chainId: base.id });
   const publicClient = usePublicClient({ chainId: base.id });
   const { switchChain } = useSwitchChain();
   const [status, setStatus] = useState<ExecutionStatus>('idle');
@@ -193,16 +194,9 @@ export function ActionCard({
         setStatus('failed');
         return;
       }
-      if (!walletClient) {
-        setError('Wallet not ready. Please try again.');
-        setStatus('failed');
-        console.error('walletClient is undefined');
-        return;
-      }
       if (!publicClient) {
         setError('Network connection not ready. Please try again.');
         setStatus('failed');
-        console.error('publicClient is undefined');
         return;
       }
 
@@ -211,12 +205,19 @@ export function ActionCard({
       setError(undefined);
 
       try {
+        // Fetch wallet client lazily (Privy doesn't provide it via useWalletClient hook reliably)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        if (!wc) {
+          throw new Error('Wallet not ready. Please reconnect and try again.');
+        }
+
         const result = await executeAaveSupply({
           chainId: chainId || 8453, // Base Mainnet
           token: token as AaveToken,
           amount,
           userAddress: address,
-          walletClient: walletClient as never,
+          walletClient: wc as never,
           publicClient: publicClient as never,
           onUpdate: (update: AaveExecutionStatus) => {
             setStatusMessage(update.message);
@@ -257,8 +258,8 @@ export function ActionCard({
         setStatus('failed');
         return;
       }
-      if (!walletClient || !publicClient) {
-        setError('Wallet not ready. Please try again.');
+      if (!publicClient) {
+        setError('Network connection not ready. Please try again.');
         setStatus('failed');
         return;
       }
@@ -268,12 +269,18 @@ export function ActionCard({
       setError(undefined);
 
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        if (!wc) {
+          throw new Error('Wallet not ready. Please reconnect and try again.');
+        }
+
         const result = await executeAaveWithdraw({
           chainId: chainId || 8453,
           token: token as AaveToken,
           amount,
           userAddress: address,
-          walletClient: walletClient as never,
+          walletClient: wc as never,
           publicClient: publicClient as never,
           onUpdate: (update: AaveExecutionStatus) => {
             setStatusMessage(update.message);
@@ -309,8 +316,8 @@ export function ActionCard({
     }
     // For swap + supply combo
     else if (action === 'swap_and_supply' && fromTokenAddress && toTokenAddress && amount && fromDecimals && toDecimals) {
-      if (!walletClient || !publicClient) {
-        setError('Wallet not ready. Please try again.');
+      if (!publicClient) {
+        setError('Network connection not ready. Please try again.');
         setStatus('failed');
         return;
       }
@@ -321,6 +328,11 @@ export function ActionCard({
       setError(undefined);
 
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        if (!wc) {
+          throw new Error('Wallet not ready. Please reconnect and try again.');
+        }
         // Step 1: Execute swap via Li.Fi
         configureLifi();
         const fromAmountWei = parseUnits(amount, fromDecimals).toString();
@@ -372,7 +384,7 @@ export function ActionCard({
           token: supplyToken,
           amount: supplyAmount,
           userAddress: address,
-          walletClient: walletClient as never,
+          walletClient: wc as never,
           publicClient: publicClient as never,
           onUpdate: (update: AaveExecutionStatus) => {
             setStatusMessage(`Step 2/2: ${update.message}`);
