@@ -38,7 +38,7 @@ Invoke these skills when working on relevant features:
 | Auth/Wallet | Privy + Coinbase Smart Wallet |
 | AI Agent | Vercel AI SDK + Claude |
 | DEX/Bridge | Li.Fi SDK |
-| Lending | AAVE V3 (Shallows), Morpho Blue Vaults (Mid-Depth) |
+| Lending/Vaults | AAVE V3 (Shallows), Generic ERC-4626 vaults (Mid-Depth+) |
 | Yield Data | DeFi Llama Yields API (free, no auth) |
 | Chain | Base Sepolia (dev) / Base Mainnet (demo) |
 
@@ -72,7 +72,8 @@ components/
 lib/
 ├── lifi.ts                 # Li.Fi SDK wrapper
 ├── aave.ts                 # AAVE integration
-├── morpho.ts               # Morpho Blue vault integration (ERC-4626)
+├── vaults.ts               # Generic ERC-4626 vault adapter (works with ANY vault)
+├── vault-registry.ts       # Curated vault addresses (add protocol = add entry)
 ├── ai/                     # Tools, prompts, context
 └── constants.ts            # Addresses, ABIs
 ```
@@ -244,24 +245,59 @@ vault.convertToAssets(uint256 shares) → uint256 assets
 | Gains Network | 9.73% | $2.4M | Med |
 | Avantis | 11.11% | $88.6M | Med |
 
-### Integration Plan
-1. **`/api/yields/route.ts`** - Fetches DeFi Llama, filters Base, caches 5 min
-2. **`lib/morpho.ts`** - ERC-4626 deposit/withdraw helpers
-3. **`lib/hooks/useMorpho.ts`** - Position tracking + vault rates
-4. **AI tool: `scanYields`** - Queries DeFi Llama API, returns sorted opportunities
-5. **AI tool: `prepareMorphoDeposit`** - Returns tx data for Morpho vault deposit
-6. **AI tool: `prepareMorphoWithdraw`** - Returns tx data for vault withdrawal
-7. **ActionCard** - New `morpho_deposit` / `morpho_withdraw` action branches
-8. **Dashboard** - MorphoPositions component alongside AavePositions
-9. **AI prompt** - Tier-specific behavior: Mid-Depth AI proactively compares across protocols
+### Integration Plan (PIVOTED: Generic ERC-4626 Vault Adapter)
+
+Instead of Morpho-specific code, we build a **universal ERC-4626 vault adapter**.
+Adding a new protocol = adding one entry to a vault registry. No new code needed.
+
+**Architecture:**
+```
+lib/
+├── vaults.ts              # Generic ERC-4626 adapter (deposit, redeem, positions)
+├── vault-registry.ts      # Curated vault addresses: { slug: { name, address, token } }
+├── hooks/useVault.ts      # useVaultPosition(), useVaultPositions()
+```
+
+**Implementation:**
+1. **`/api/yields/route.ts`** ✅ Fetches DeFi Llama, filters Base, caches 5 min
+2. **`lib/vaults.ts`** - Generic ERC-4626 deposit/withdraw/read (ONE implementation for ALL vaults)
+3. **`lib/vault-registry.ts`** - Curated list of vault addresses on Base (start with Morpho, add more)
+4. **`lib/hooks/useVault.ts`** - Position tracking across any registered vault
+5. **AI tool: `scanYields`** ✅ Queries DeFi Llama API, returns sorted opportunities
+6. **AI tool: `prepareVaultDeposit`** - Generic: takes vault slug + amount, returns tx data
+7. **AI tool: `prepareVaultWithdraw`** - Generic: takes vault slug + amount
+8. **ActionCard** - New `vault_deposit` / `vault_withdraw` branches (generic, works for any vault)
+9. **Dashboard** - VaultPositions component showing all vault positions
+10. **AI prompt** - Tier-specific behavior: Mid-Depth AI compares across protocols
+
+**Vault Registry Pattern:**
+```typescript
+export const VAULT_REGISTRY = {
+  'morpho-gauntlet-usdc': {
+    name: 'Morpho Gauntlet USDC',
+    protocol: 'morpho-v1',
+    address: '0x...',
+    underlyingToken: 'USDC',
+    underlyingAddress: CONTRACTS.USDC,
+    underlyingDecimals: 6,
+  },
+  // Adding a new vault = adding one entry here. No new code needed.
+} as const;
+```
+
+**Why this is better for the demo:**
+- "Tidal supports ANY ERC-4626 vault on Base"
+- Adding a new protocol = one line of config
+- Shows scalable architecture, not one-off integrations
+- Same deposit UX regardless of protocol
 
 ### Mid-Depth AI Behavior
 When user is Mid-Depth:
 - AI scans yields via DeFi Llama before recommending
-- Compares AAVE vs Morpho rates in real-time
-- Says: "I found 7.8% on Morpho vs 3.9% on AAVE. Morpho vault has $73M TVL and is audited."
-- Recommends Morpho for higher yield, AAVE for maximum safety
-- If swap needed: Li.Fi routes token first, then deposits to chosen protocol
+- Compares rates across all supported vault protocols in real-time
+- Says: "I scanned 15 pools on Base. Morpho Gauntlet is offering 4.3% vs AAVE at 3.9%."
+- Can execute deposits into any vault in the registry
+- If swap needed: Li.Fi routes token first, then deposits to chosen vault
 
 ---
 
@@ -352,25 +388,30 @@ When user is Mid-Depth:
 - [x] AI prompt updated to always mention Li.Fi when routing
 - [ ] **TEST:** Screenshot-ready UI with Li.Fi attribution
 
-**Day 5 (Feb 6) - Mid-Depth: DeFi Llama + AI Yield Scanner**
-- [ ] Create `/api/yields/route.ts` - fetch DeFi Llama, filter Base, cache 5 min
-- [ ] Create `scanYields` AI tool - queries API, returns sorted opportunities by risk tier
-- [ ] Update AI prompt with tier-specific behavior (Shallows=AAVE only, Mid-Depth=compare protocols)
-- [ ] Update welcome message per tier
-- [ ] **TEST:** Ask "What are the best USDC yields?" and see multi-protocol comparison
+**Day 5 (Feb 6) - Mid-Depth: DeFi Llama + AI Yield Scanner** ✅
+- [x] Create `/api/yields/route.ts` - fetch DeFi Llama, filter Base, cache 5 min
+- [x] Create `scanYields` AI tool - queries API, returns sorted opportunities by risk tier
+- [x] Update AI prompt with tier-specific behavior (Shallows=AAVE only, Mid-Depth=compare protocols)
+- [x] Update welcome messages per tier (client + server)
+- [x] Sidebar StrategyCards with live APYs, protocol pinning, Supported badges
+- [x] Tier switcher dropdown in sidebar
+- [x] Risk assessment: AAVE=Shallows only, Morpho+=Mid-Depth
+- [ ] **TEST:** Switch to Mid-Depth, see multi-protocol yield comparison
 
-**Day 6 (Feb 7) - Mid-Depth: Morpho Vault Integration**
-- [ ] Create `lib/morpho.ts` - ERC-4626 deposit/withdraw/position helpers
-- [ ] Create `lib/hooks/useMorpho.ts` - vault position + rate hooks
-- [ ] Create `prepareMorphoDeposit` / `prepareMorphoWithdraw` AI tools
-- [ ] Add `morpho_deposit` / `morpho_withdraw` branches to ActionCard
-- [ ] **TEST:** Supply USDC to Morpho vault via chat, verify position
+**Day 6 (Feb 7) - Generic ERC-4626 Vault Adapter**
+- [ ] Create `lib/vault-registry.ts` - curated vault addresses (Morpho Gauntlet, Steakhouse, etc.)
+- [ ] Create `lib/vaults.ts` - generic ERC-4626 deposit/withdraw/position helpers
+- [ ] Create `lib/hooks/useVault.ts` - vault position tracking across all registered vaults
+- [ ] Create `prepareVaultDeposit` / `prepareVaultWithdraw` AI tools (generic)
+- [ ] Add `vault_deposit` / `vault_withdraw` branches to ActionCard
+- [ ] **TEST:** Deposit USDC to Morpho Gauntlet vault via chat
 
-**Day 7 (Feb 8) - Dashboard + Tier Differentiation Polish**
-- [ ] MorphoPositions component alongside AavePositions in dashboard
-- [ ] YieldRates component shows tier-relevant rates (Shallows=AAVE, Mid-Depth=AAVE+Morpho)
-- [ ] Update onboarding examples to match real strategies (Morpho vaults, not "LP positions")
-- [ ] **TEST:** Switch tiers, verify dashboard and AI behavior changes
+**Day 7 (Feb 8) - Dashboard + Multi-Vault Polish**
+- [ ] VaultPositions component showing all ERC-4626 positions in dashboard
+- [ ] Add 2-3 more vaults to registry (Steakhouse, Moonwell Flagship, etc.)
+- [ ] Update onboarding examples to match real strategies
+- [ ] Wire `prepareSwapAndVaultDeposit` combo (Li.Fi swap → vault deposit)
+- [ ] **TEST:** Full flow: swap ETH → USDC via Li.Fi → deposit to Morpho vault
 
 ### Previously Completed (done early)
 
