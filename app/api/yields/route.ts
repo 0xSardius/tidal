@@ -43,18 +43,19 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Map DeFi Llama pool to a risk level for our tier system
 function assessRisk(pool: DefiLlamaPool): 1 | 2 | 3 {
-  // Level 1 (Shallows): Stablecoins, single exposure, no IL, high TVL, known protocols
+  // Level 1 (Shallows): AAVE only - stablecoins, single exposure, no IL, high TVL
+  // This is intentionally restrictive so Mid-Depth feels like an upgrade
   if (
     pool.stablecoin &&
     pool.exposure === 'single' &&
     pool.ilRisk === 'no' &&
     pool.tvlUsd > 10_000_000 &&
-    ['aave-v3', 'compound-v3', 'morpho-v1'].includes(pool.project)
+    pool.project === 'aave-v3'
   ) {
     return 1;
   }
 
-  // Level 2 (Mid-Depth): Single exposure, no IL, decent TVL
+  // Level 2 (Mid-Depth): Single exposure, no IL, decent TVL - unlocks Morpho, Compound, etc.
   if (
     pool.exposure === 'single' &&
     pool.ilRisk === 'no' &&

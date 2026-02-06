@@ -34,11 +34,18 @@ const WalletSection = dynamic(() => import('./WalletSection').then(mod => mod.Wa
 
 export function PoolList() {
   const { positions, totalValueUsd, isLoading } = useAavePositions();
-  const { riskDepth } = useRiskDepth();
+  const { riskDepth, setRiskDepth } = useRiskDepth();
+  const [showDepthPicker, setShowDepthPicker] = useState(false);
 
   // Get display info for current risk depth
   const currentDepth = riskDepth || 'shallows';
   const depthInfo = depthLabels[currentDepth];
+
+  const allDepths: Array<{ key: 'shallows' | 'mid-depth' | 'deep-water'; apy: string }> = [
+    { key: 'shallows', apy: '3-5%' },
+    { key: 'mid-depth', apy: '5-10%' },
+    { key: 'deep-water', apy: '10%+' },
+  ];
 
   return (
     <div className="flex flex-col h-full">
@@ -54,11 +61,14 @@ export function PoolList() {
         </div>
       </div>
 
-      {/* Current Strategy */}
+      {/* Current Strategy - clickable to switch */}
       <div className="p-3">
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2 px-1">Your Strategy</div>
-        <div className="w-full text-left p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-          <div className="flex items-start justify-between">
+        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2 px-1">Your Depth</div>
+        <button
+          onClick={() => setShowDepthPicker(!showDepthPicker)}
+          className="w-full text-left p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/15 transition-colors group"
+        >
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-lg">{depthInfo.emoji}</span>
               <div>
@@ -68,6 +78,12 @@ export function PoolList() {
                 </div>
               </div>
             </div>
+            <svg
+              className={`w-4 h-4 text-slate-500 transition-transform ${showDepthPicker ? 'rotate-180' : ''}`}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
           </div>
           <div className="mt-2 text-right">
             {isLoading ? (
@@ -78,7 +94,53 @@ export function PoolList() {
               </span>
             )}
           </div>
-        </div>
+        </button>
+
+        {/* Depth Picker Dropdown */}
+        {showDepthPicker && (
+          <div className="mt-2 rounded-lg border border-white/10 bg-slate-900/95 backdrop-blur-sm overflow-hidden">
+            {allDepths.map((depth) => {
+              const info = depthLabels[depth.key];
+              const isActive = depth.key === currentDepth;
+              return (
+                <button
+                  key={depth.key}
+                  onClick={() => {
+                    setRiskDepth(depth.key);
+                    setShowDepthPicker(false);
+                    // Reload to apply new tier everywhere
+                    window.location.reload();
+                  }}
+                  className={`w-full flex items-center justify-between p-2.5 text-left transition-colors ${
+                    isActive
+                      ? 'bg-cyan-500/10'
+                      : 'hover:bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{info.emoji}</span>
+                    <div>
+                      <div className={`text-xs font-medium ${isActive ? 'text-cyan-300' : 'text-slate-300'}`}>
+                        {info.name}
+                      </div>
+                      <div className="text-[10px] text-slate-500">
+                        {depth.key.replace('-', ' ')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-500">{depth.apy}</span>
+                    {isActive && (
+                      <svg className="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Yield Opportunities - tier-aware */}
