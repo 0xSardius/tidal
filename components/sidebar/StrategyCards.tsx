@@ -24,6 +24,13 @@ const PROTOCOL_META: Record<string, { name: string; color: string; icon: string 
   'avantis': { name: 'Avantis', color: 'from-teal-500/20 to-teal-600/10 border-teal-500/20', icon: '⚡' },
 };
 
+// Protocols we can actually execute on - always pin these in the sidebar
+const FEATURED_PROTOCOLS: Record<string, string[]> = {
+  'shallows': ['aave-v3'],
+  'mid-depth': ['aave-v3', 'morpho-v1'],
+  'deep-water': ['aave-v3', 'morpho-v1'],
+};
+
 function getProtocolMeta(protocol: string) {
   return PROTOCOL_META[protocol] || {
     name: protocol.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -50,10 +57,13 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
   const currentDepth = riskDepth || 'shallows';
   const maxRisk = currentDepth === 'shallows' ? 1 : currentDepth === 'mid-depth' ? 2 : 3;
 
+  const featured = FEATURED_PROTOCOLS[currentDepth] || ['aave-v3'];
+
   useEffect(() => {
     async function fetchYields() {
       try {
-        const res = await fetch(`/api/yields?token=USDC&maxRisk=${maxRisk}&limit=8`);
+        // Fetch more results to ensure featured protocols are included
+        const res = await fetch(`/api/yields?token=USDC&maxRisk=${maxRisk}&limit=20`);
         const data = await res.json();
         if (data.success && data.opportunities) {
           // Deduplicate by protocol - take the best APY per protocol
@@ -64,7 +74,19 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
               byProtocol.set(opp.protocol, opp);
             }
           }
-          setOpportunities(Array.from(byProtocol.values()).sort((a, b) => b.apy - a.apy));
+
+          const all = Array.from(byProtocol.values());
+
+          // Split into featured (pinned) and others
+          const pinnedItems = featured
+            .map((p) => all.find((o) => o.protocol === p))
+            .filter(Boolean) as YieldOpportunity[];
+          const otherItems = all
+            .filter((o) => !featured.includes(o.protocol))
+            .sort((a, b) => b.apy - a.apy);
+
+          // Featured first, then best remaining
+          setOpportunities([...pinnedItems, ...otherItems]);
         }
       } catch (err) {
         console.error('Failed to fetch yields:', err);
@@ -73,17 +95,22 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
       }
     }
     fetchYields();
-  }, [maxRisk]);
+  }, [maxRisk, featured.join(',')]);
 
   const handleClick = (opp: YieldOpportunity) => {
     const meta = getProtocolMeta(opp.protocol);
+    const isFeatured = featured.includes(opp.protocol);
     if (onStrategyClick) {
-      onStrategyClick(`Tell me about the ${opp.symbol} yield on ${meta.name}`);
+      if (isFeatured) {
+        onStrategyClick(`I'd like to earn yield on USDC with ${meta.name}. What's the current rate?`);
+      } else {
+        onStrategyClick(`Tell me about the ${opp.symbol} yield on ${meta.name}`);
+      }
     }
   };
 
-  // Limit display: Shallows=2, Mid-Depth=4, Deep Water=6
-  const displayLimit = currentDepth === 'shallows' ? 2 : currentDepth === 'mid-depth' ? 4 : 6;
+  // Limit display: Shallows=2, Mid-Depth=5, Deep Water=6
+  const displayLimit = currentDepth === 'shallows' ? 2 : currentDepth === 'mid-depth' ? 5 : 6;
   const displayed = opportunities.slice(0, displayLimit);
 
   return (
@@ -106,9 +133,14 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
         </div>
       ) : (
         <div className="space-y-1.5">
-          {displayed.map((opp, i) => {
+          {displayed.map((opp) => {
             const meta = getProtocolMeta(opp.protocol);
-            const isTop = i === 0;
+            const isFeatured = featured.includes(opp.protocol);
+            // Best rate is the highest APY among non-featured (discovery) protocols
+            const highestDiscoveryApy = displayed
+              .filter((o) => !featured.includes(o.protocol))
+              .reduce((max, o) => Math.max(max, o.apy), 0);
+            const isBestRate = !isFeatured && opp.apy === highestDiscoveryApy && opp.apy > 0;
             return (
               <button
                 key={opp.id}
@@ -119,8 +151,13 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm flex-shrink-0">{meta.icon}</span>
                     <div className="min-w-0">
-                      <div className="text-xs font-medium text-slate-200 truncate">
+                      <div className="text-xs font-medium text-slate-200 truncate flex items-center gap-1.5">
                         {meta.name}
+                        {isFeatured && (
+                          <span className="text-[8px] px-1 py-px rounded bg-cyan-500/20 text-cyan-400 font-medium">
+                            Supported
+                          </span>
+                        )}
                       </div>
                       <div className="text-[10px] text-slate-500 truncate">
                         {opp.symbol} · {formatTvl(opp.tvlUsd)} TVL
@@ -128,19 +165,26 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">
-                    <div className={`text-sm font-semibold tabular-nums ${isTop ? 'text-emerald-400' : 'text-slate-300'}`}>
+                    <div className={`text-sm font-semibold tabular-nums ${isBestRate ? 'text-emerald-400' : 'text-slate-300'}`}>
                       {opp.apy.toFixed(1)}%
                     </div>
                     <div className="text-[10px] text-slate-500">APY</div>
                   </div>
                 </div>
-                {isTop && (
+                {isBestRate && (
                   <div className="mt-1.5 flex items-center gap-1">
                     <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-medium">
                       Best Rate
                     </span>
                     <span className="text-[9px] text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                      Ask Tidal to dive in →
+                      Ask Tidal about this →
+                    </span>
+                  </div>
+                )}
+                {isFeatured && !isBestRate && (
+                  <div className="mt-1.5">
+                    <span className="text-[9px] text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Dive in with Tidal →
                     </span>
                   </div>
                 )}
