@@ -38,7 +38,8 @@ Invoke these skills when working on relevant features:
 | Auth/Wallet | Privy + Coinbase Smart Wallet |
 | AI Agent | Vercel AI SDK + Claude |
 | DEX/Bridge | Li.Fi SDK |
-| Lending | AAVE V3 |
+| Lending | AAVE V3 (Shallows), Morpho Blue Vaults (Mid-Depth) |
+| Yield Data | DeFi Llama Yields API (free, no auth) |
 | Chain | Base Sepolia (dev) / Base Mainnet (demo) |
 
 ## Commands
@@ -59,7 +60,8 @@ app/
 │   └── dashboard/          # Main dashboard + chat
 └── api/
     ├── chat/route.ts       # AI agent (Vercel AI SDK)
-    └── lifi/               # Li.Fi quote/route endpoints
+    ├── lifi/               # Li.Fi quote/route endpoints
+    └── yields/route.ts     # DeFi Llama yield scanner (cached)
 
 components/
 ├── chat/                   # ChatPanel, Message, ActionCard
@@ -70,6 +72,7 @@ components/
 lib/
 ├── lifi.ts                 # Li.Fi SDK wrapper
 ├── aave.ts                 # AAVE integration
+├── morpho.ts               # Morpho Blue vault integration (ERC-4626)
 ├── ai/                     # Tools, prompts, context
 └── constants.ts            # Addresses, ABIs
 ```
@@ -107,13 +110,14 @@ User Request → Check Risk Depth → Filter Strategies →
 
 ### Risk Tier Strategy Matrix:
 
-| Tier | Yield Strategies | Accepted Tokens | Li.Fi Role |
-|------|-----------------|-----------------|------------|
-| Shallows | AAVE USDC, AAVE DAI | USDC, DAI, ETH* | Swap ETH→stable first |
-| Mid-Depth | Above + AAVE ETH/WETH | USDC, DAI, ETH | Swap between any |
-| Deep Water | Above + multi-step | All supported | Complex routing |
+| Tier | Yield Strategies | Target APY | Accepted Tokens | Li.Fi Role |
+|------|-----------------|-----------|-----------------|------------|
+| Shallows | AAVE USDC, AAVE DAI | 3-5% | USDC, DAI, ETH* | Swap ETH→stable first |
+| Mid-Depth | Above + Morpho USDC Vault, AAVE ETH/WETH | 5-10% | USDC, DAI, ETH | Swap between any, route to best protocol |
+| Deep Water | Above + multi-step combos | 10%+ | All supported | Complex routing |
 
 *Example: Shallows user with ETH → Li.Fi swaps ETH→USDC → AAVE supply
+*Example: Mid-Depth user with USDC → AI finds Morpho at 7.8% vs AAVE at 3.9% → deposits to Morpho
 
 ### Agent Behavior:
 - ALWAYS mention Li.Fi when routing: "Routing via Li.Fi across 5 DEXs for 0.3% better rate"
@@ -165,12 +169,14 @@ Li.Fi transforms Tidal from "AAVE frontend" to "cross-chain yield optimizer":
 ### Implementation Phases
 
 **Phase 1 (Current - Hackathon)**
-- Single chain (Base) yield via AAVE
+- Single chain (Base), multi-protocol yield (AAVE + Morpho)
+- DeFi Llama yield scanning across protocols on Base
 - Li.Fi for token swaps before deposit
+- AI recommends best protocol per risk tier
 - AI explains and executes
 
 **Phase 2 (Post-Hackathon)**
-- Multi-chain yield comparison (DeFi Llama API)
+- Multi-chain yield comparison (DeFi Llama across all chains)
 - Li.Fi bridges for cross-chain movement
 - AI recommends optimal chain based on:
   - Current APY
@@ -180,7 +186,7 @@ Li.Fi transforms Tidal from "AAVE frontend" to "cross-chain yield optimizer":
 
 **Phase 3 (Future)**
 - Auto-rebalancing ("Move when APY delta > 1%")
-- Multi-protocol support (Compound, Morpho, etc.)
+- Additional protocol support (Compound, Moonwell, etc.)
 - Yield notifications ("Better rate found on Arbitrum")
 - Portfolio optimization across chains
 
@@ -195,6 +201,67 @@ This is not another DeFi dashboard. Tidal is the **interface layer between users
 - **Li.Fi** for universal routing
 - **AI** for intelligent recommendations
 - **Risk depth** for personalization
+
+---
+
+## Mid-Depth Strategy: Morpho Blue Vaults + DeFi Llama Yield Scanning
+
+### Why Morpho for Mid-Depth
+Morpho Blue vaults on Base deliver **5-10% USDC APY** vs AAVE's ~3.9%. They use the **ERC-4626 standard** (simplest vault interface in DeFi), making integration ~2-4 hours. This gives Mid-Depth users a real yield upgrade over Shallows.
+
+### Morpho Vault Addresses (Base Mainnet)
+- **Gauntlet USDC Vault**: `0x...` (verify on morpho.org before integration)
+- **Moonwell Flagship USDC**: `0xc1256Ae5FF1cf2719D4937adb3bbCCab2E00A2Ca`
+- **Steakhouse USDC**: (Coinbase-integrated vault)
+
+### Morpho ERC-4626 Interface
+```solidity
+// Deposit (supply)
+vault.deposit(uint256 assets, address receiver) → uint256 shares
+
+// Withdraw
+vault.redeem(uint256 shares, address receiver, address owner) → uint256 assets
+
+// Read position
+vault.balanceOf(address owner) → uint256 shares
+vault.convertToAssets(uint256 shares) → uint256 assets
+```
+
+### DeFi Llama Yields API
+- **Endpoint**: `GET https://yields.llama.fi/pools` (free, no auth)
+- **Returns**: 20K+ pools across 118 chains with live APY, TVL, protocol info
+- **Filter for Base**: `pool.chain === "Base"`
+- **Key fields**: `apy`, `apyBase`, `apyReward`, `tvlUsd`, `project`, `symbol`, `exposure`, `ilRisk`
+- **Cache**: Response is ~10-15MB, cache for 5-10 minutes
+- **Risk mapping**: `exposure === "single" && ilRisk === "no"` → safe for Shallows/Mid-Depth
+
+### Live Yield Data (Base, Feb 2026)
+| Protocol | USDC APY | TVL | Risk |
+|----------|---------|-----|------|
+| AAVE V3 | 3.90% | $46.7M | Low |
+| Gauntlet (Morpho) | 5.13% | $73.7M | Low |
+| Moonwell | 5-11% | varies | Low-Med |
+| Gains Network | 9.73% | $2.4M | Med |
+| Avantis | 11.11% | $88.6M | Med |
+
+### Integration Plan
+1. **`/api/yields/route.ts`** - Fetches DeFi Llama, filters Base, caches 5 min
+2. **`lib/morpho.ts`** - ERC-4626 deposit/withdraw helpers
+3. **`lib/hooks/useMorpho.ts`** - Position tracking + vault rates
+4. **AI tool: `scanYields`** - Queries DeFi Llama API, returns sorted opportunities
+5. **AI tool: `prepareMorphoDeposit`** - Returns tx data for Morpho vault deposit
+6. **AI tool: `prepareMorphoWithdraw`** - Returns tx data for vault withdrawal
+7. **ActionCard** - New `morpho_deposit` / `morpho_withdraw` action branches
+8. **Dashboard** - MorphoPositions component alongside AavePositions
+9. **AI prompt** - Tier-specific behavior: Mid-Depth AI proactively compares across protocols
+
+### Mid-Depth AI Behavior
+When user is Mid-Depth:
+- AI scans yields via DeFi Llama before recommending
+- Compares AAVE vs Morpho rates in real-time
+- Says: "I found 7.8% on Morpho vs 3.9% on AAVE. Morpho vault has $73M TVL and is audited."
+- Recommends Morpho for higher yield, AAVE for maximum safety
+- If swap needed: Li.Fi routes token first, then deposits to chosen protocol
 
 ---
 
@@ -273,34 +340,48 @@ This is not another DeFi dashboard. Tidal is the **interface layer between users
 - [x] AI prompt updated to always mention Li.Fi when routing
 - [ ] **TEST:** Screenshot-ready UI with Li.Fi attribution
 
-**Day 5 (Feb 6) - Route Visualization & Polish**
-- [ ] Show rate comparison vs direct swap
-- [ ] Landing page polish for demo
-- [ ] **TEST:** Ask for quote, see full route breakdown
+**Day 5 (Feb 6) - Mid-Depth: DeFi Llama + AI Yield Scanner**
+- [ ] Create `/api/yields/route.ts` - fetch DeFi Llama, filter Base, cache 5 min
+- [ ] Create `scanYields` AI tool - queries API, returns sorted opportunities by risk tier
+- [ ] Update AI prompt with tier-specific behavior (Shallows=AAVE only, Mid-Depth=compare protocols)
+- [ ] Update welcome message per tier
+- [ ] **TEST:** Ask "What are the best USDC yields?" and see multi-protocol comparison
 
-### Phase 3: Integration & Flow (Days 6-7) — Feb 7-8
+**Day 6 (Feb 7) - Mid-Depth: Morpho Vault Integration**
+- [ ] Create `lib/morpho.ts` - ERC-4626 deposit/withdraw/position helpers
+- [ ] Create `lib/hooks/useMorpho.ts` - vault position + rate hooks
+- [ ] Create `prepareMorphoDeposit` / `prepareMorphoWithdraw` AI tools
+- [ ] Add `morpho_deposit` / `morpho_withdraw` branches to ActionCard
+- [ ] **TEST:** Supply USDC to Morpho vault via chat, verify position
 
-**Day 6 (Feb 7) - Swap+Supply Combo** ✅ (done early!)
+**Day 7 (Feb 8) - Dashboard + Tier Differentiation Polish**
+- [ ] MorphoPositions component alongside AavePositions in dashboard
+- [ ] YieldRates component shows tier-relevant rates (Shallows=AAVE, Mid-Depth=AAVE+Morpho)
+- [ ] Update onboarding examples to match real strategies (Morpho vaults, not "LP positions")
+- [ ] **TEST:** Switch tiers, verify dashboard and AI behavior changes
+
+### Previously Completed (done early)
+
+**Swap+Supply Combo** ✅
 - [x] prepareSwapAndSupply returns real Li.Fi quote + live AAVE APY
 - [x] ActionCard executes 2-step flow: Li.Fi swap → AAVE supply
 - [x] Step progress indicators with active/completed states
-- [ ] **TEST:** "Swap ETH to USDC and supply to AAVE" works
 
-**Day 7 (Feb 8) - Error Handling** ✅ (done early!)
+**Error Handling** ✅
 - [x] Friendly error messages (insufficient balance, rejected tx, slippage, network)
 - [x] Retry button on failures
 - [x] Generic tool results hidden from chat (AI explains instead)
-- [ ] **TEST:** Intentionally trigger failures, verify graceful handling
 
 ### Phase 4: Demo Polish (Days 8-9) — Feb 9-10
 
 **Day 8 (Feb 9) - Demo Script**
-- [ ] Write exact 3-minute demo script
+- [ ] Write exact 3-minute demo script (show BOTH tiers!)
 - [ ] Pre-fund wallet with demo amounts
 - [ ] Test full flow 3 times
 - [ ] **TEST:** Record practice run
 
 **Day 9 (Feb 10) - Final Polish**
+- [ ] Landing page polish for demo
 - [ ] UI tweaks and animations
 - [ ] Loading state improvements
 - [ ] Copy refinement (ocean metaphors)
@@ -317,15 +398,19 @@ This is not another DeFi dashboard. Tidal is the **interface layer between users
 
 ```
 [0:00] Landing "/" → Click "Dive In" → Privy login
-[0:20] Onboard → Select "Shallows" (conservative)
-[0:35] Dashboard loads → Welcome message from Tidal
-[0:45] Chat: "What can I earn on my USDC?"
-[1:00] AI shows AAVE rates with live APY data
-[1:15] Chat: "Get a quote for swapping 10 USDC to ETH"
-[1:30] Li.Fi quote appears with route visualization + branding
-[1:45] Chat: "Supply 20 USDC to AAVE"
-[2:00] ActionCard appears → Click Approve → Transaction executes
-[2:30] Portfolio updates showing position + projected yield
+[0:15] Onboard → Select "Shallows" → Dashboard loads
+[0:25] Chat: "What can I earn on my USDC?"
+[0:35] AI shows AAVE at 3.9% → "Calm waters, steady returns"
+[0:50] Chat: "Supply 20 USDC to AAVE"
+[1:00] ActionCard → Approve → Transaction executes
+[1:15] Position appears in dashboard. "Now let me show you Mid-Depth..."
+[1:20] Switch to Mid-Depth tier (settings or onboard again)
+[1:30] Chat: "What are the best USDC yields right now?"
+[1:40] AI scans DeFi Llama → "I found Morpho at 7.8% vs AAVE at 3.9%"
+[1:55] Chat: "Move my USDC to the higher yield"
+[2:05] AI: "Routing via Li.Fi + depositing to Morpho vault" → ActionCard
+[2:15] Approve → Transaction executes → Morpho position in dashboard
+[2:30] Recap: "Two tiers, AI finds best yield, Li.Fi routes, one click"
 [2:45] Wrap: "Tidal - AI-powered DeFi for everyone"
 ```
 
@@ -352,3 +437,6 @@ This is not another DeFi dashboard. Tidal is the **interface layer between users
 - **AI SDK v6 Pattern**: `convertToModelMessages()` is ASYNC - must `await` it!
 - **Privy/wagmi**: Import `createConfig` and `WagmiProvider` from `@privy-io/wagmi`, NOT from `wagmi`
 - Dashboard uses real AAVE data (positions + APY) - no more hardcoded values
+- **Morpho vaults are ERC-4626** - standard interface: `deposit(assets, receiver)`, `redeem(shares, receiver, owner)`
+- **DeFi Llama API** is free, no auth: `GET https://yields.llama.fi/pools` - cache 5-10 min, filter `chain === "Base"`
+- **Mid-Depth differentiator**: AI scans yields across protocols, recommends Morpho when APY > AAVE

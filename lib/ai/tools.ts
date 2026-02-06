@@ -354,11 +354,103 @@ export const prepareSwapAndSupplyTool = tool({
 });
 
 /**
+ * Scan yield opportunities across protocols on Base via DeFi Llama
+ */
+export const scanYieldsTool = tool({
+  description:
+    'Scan yield opportunities across multiple DeFi protocols on Base chain. Uses DeFi Llama to find the best rates. Use this when users ask about yields, best rates, or where to earn. Returns opportunities sorted by APY.',
+  inputSchema: z.object({
+    token: z
+      .enum(['USDC', 'WETH', 'ETH', 'DAI'])
+      .optional()
+      .describe('Filter by token (optional). If not provided, returns all tokens.'),
+    maxRisk: z
+      .number()
+      .min(1)
+      .max(3)
+      .optional()
+      .describe(
+        'Maximum risk level: 1=Shallows (stablecoin lending, blue-chip), 2=Mid-Depth (single-asset, established), 3=Deep Water (all including LP). Defaults to user risk depth.'
+      ),
+    limit: z
+      .number()
+      .min(1)
+      .max(20)
+      .optional()
+      .describe('Number of results to return (default 5)'),
+  }),
+  execute: async (input) => {
+    const { token, maxRisk = 2, limit = 5 } = input;
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const params = new URLSearchParams();
+      if (token) params.set('token', token);
+      params.set('maxRisk', maxRisk.toString());
+      params.set('limit', limit.toString());
+
+      const response = await fetch(`${baseUrl}/api/yields?${params}`);
+      const data = await response.json();
+
+      if (!data.success || !data.opportunities?.length) {
+        return {
+          error: false,
+          message: 'No yield opportunities found matching your criteria.',
+          opportunities: [],
+        };
+      }
+
+      // Format for the AI to present nicely
+      const opportunities = data.opportunities.map(
+        (opp: {
+          protocol: string;
+          symbol: string;
+          apy: number;
+          apyBase: number | null;
+          apyReward: number | null;
+          tvlUsd: number;
+          riskLevel: number;
+          apyMean30d: number | null;
+        }) => ({
+          protocol: opp.protocol,
+          token: opp.symbol,
+          apy: opp.apy,
+          apyBase: opp.apyBase,
+          apyReward: opp.apyReward,
+          tvlUsd: opp.tvlUsd,
+          tvlFormatted:
+            opp.tvlUsd >= 1_000_000
+              ? `$${(opp.tvlUsd / 1_000_000).toFixed(1)}M`
+              : `$${(opp.tvlUsd / 1_000).toFixed(0)}K`,
+          riskLevel: opp.riskLevel,
+          apyMean30d: opp.apyMean30d,
+        })
+      );
+
+      return {
+        opportunities,
+        total: data.total,
+        chain: 'Base',
+        source: 'DeFi Llama',
+        note: 'APY data is live from DeFi Llama. Rates change frequently.',
+      };
+    } catch (error) {
+      console.error('Yield scan error:', error);
+      return {
+        error: true,
+        message: 'Failed to scan yields. Try again or check specific protocols.',
+      };
+    }
+  },
+});
+
+/**
  * All tools for the AI agent
  */
 export const tidalTools = {
   getQuote: getQuoteTool,
   getAaveRates: getAaveRatesTool,
+  scanYields: scanYieldsTool,
   prepareSupply: prepareSupplyTool,
   prepareWithdraw: prepareWithdrawTool,
   prepareSwap: prepareSwapTool,
