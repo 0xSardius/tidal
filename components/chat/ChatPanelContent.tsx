@@ -1,7 +1,7 @@
 'use client';
 
 import { useChat, type UIMessage } from '@ai-sdk/react';
-import { useEffect, useRef, useState, FormEvent } from 'react';
+import { useEffect, useRef, useState, useCallback, FormEvent } from 'react';
 import { useAccount } from 'wagmi';
 import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
 import { useAavePositions } from '@/lib/hooks/useAave';
@@ -80,6 +80,22 @@ export function ChatPanelContent() {
       container.scrollTop = container.scrollHeight;
     }
   }, [messages]);
+
+  // Listen for strategy card clicks from sidebar
+  const handleSidebarMessage = useCallback(
+    (e: Event) => {
+      const message = (e as CustomEvent<string>).detail;
+      if (message && !isLoading) {
+        sendMessage({ text: message }, { body: { data: { context } } });
+      }
+    },
+    [sendMessage, context, isLoading]
+  );
+
+  useEffect(() => {
+    window.addEventListener('tidal:chat-message', handleSidebarMessage);
+    return () => window.removeEventListener('tidal:chat-message', handleSidebarMessage);
+  }, [handleSidebarMessage]);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -415,18 +431,42 @@ export function ChatPanelContent() {
 }
 
 function getWelcomeMessage(riskDepth: string): string {
-  const depthConfig = RISK_DEPTHS[riskDepth as keyof typeof RISK_DEPTHS];
+  if (riskDepth === 'shallows') {
+    return `Welcome to the Shallows - calm, protected waters.
 
-  return `Welcome to your tidal pool!
-
-I'm Tidal, your AI guide for DeFi yield. You're currently exploring the **${depthConfig.label}** - ${depthConfig.description.toLowerCase()}.
+I'm Tidal, your AI guide for DeFi yield. I'll keep you in safe harbors with battle-tested protocols.
 
 I can help you:
-• Find the best yields for your risk level
-• Execute swaps via Li.Fi
-• Supply to AAVE for steady returns
+- Earn steady yield on USDC or DAI via AAVE (~3-5% APY)
+- Swap tokens via Li.Fi at the best rates
+- Track your positions and projected returns
 
 What would you like to explore?`;
+  }
+
+  if (riskDepth === 'mid-depth') {
+    return `Welcome to Mid-Depth - balanced currents, stronger rewards.
+
+I'm Tidal, your AI guide for DeFi yield. At this depth, I scan across multiple protocols to find you the best risk-adjusted returns.
+
+I can help you:
+- Scan yields across AAVE, Morpho, and more (~5-10% APY)
+- Earn on ETH/WETH alongside stablecoins
+- Route swaps via Li.Fi for optimal rates
+
+Ask me "What are the best yields right now?" to see what the currents are bringing in.`;
+  }
+
+  return `Welcome to Deep Water - strong currents, bigger rewards.
+
+I'm Tidal, your AI guide for DeFi yield. Down here, I scan every opportunity and can execute multi-step strategies.
+
+I can help you:
+- Find the highest yields across all protocols on Base
+- Execute complex strategies (swap + deposit in one flow)
+- Access LP positions and reward-boosted pools
+
+The deep ocean has the biggest waves. Let me know where you want to dive.`;
 }
 
 // Type for ActionCard steps

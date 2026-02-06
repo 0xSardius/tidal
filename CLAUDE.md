@@ -292,8 +292,15 @@ When user is Mid-Depth:
 - [x] useAave hooks (currently mock data)
 - [x] Dashboard components (AavePositions, YieldRates)
 
+**DeFi Llama Yield Scanner (Mid-Depth)**
+- [x] /api/yields route - DeFi Llama fetch, Base filter, 5-min cache, risk assessment
+- [x] scanYields AI tool - compares yields across protocols per tier
+- [x] Tier-specific AI prompt (Shallows=AAVE only, Mid-Depth=multi-protocol scan)
+- [x] Tier-specific welcome messages with ocean metaphors
+- [x] Verified: Shallows returns 8 blue-chip pools (AAVE 3.91%), Mid-Depth unlocks 83 pools (up to 20% APY)
+
 **AI Chat**
-- [x] AI tools: getQuote, getAaveRates, prepareSupply, prepareWithdraw, prepareSwapAndSupply
+- [x] AI tools: getQuote, getAaveRates, scanYields, prepareSupply, prepareWithdraw, prepareSwapAndSupply
 - [x] Chat API with streaming (/api/chat)
 - [x] AI SDK v6.0.65 integration (toUIMessageStreamResponse)
 - [x] ChatPanel with message parts handling

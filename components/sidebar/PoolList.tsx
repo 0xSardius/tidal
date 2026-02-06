@@ -4,6 +4,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useAavePositions } from '@/lib/hooks/useAave';
 import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
+import { StrategyCards } from './StrategyCards';
 
 const depthColors = {
   'shallows': 'bg-cyan-500/20 text-cyan-300',
@@ -79,6 +80,13 @@ export function PoolList() {
           </div>
         </div>
       </div>
+
+      {/* Yield Opportunities - tier-aware */}
+      <StrategyCards
+        onStrategyClick={(message) => {
+          window.dispatchEvent(new CustomEvent('tidal:chat-message', { detail: message }));
+        }}
+      />
 
       {/* Positions Summary */}
       <div className="flex-1 overflow-y-auto px-3 space-y-1">
