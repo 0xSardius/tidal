@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { parseUnits, formatUnits } from 'viem';
 import { getSwapQuote, BASE_TOKENS, type TokenSymbol } from '@/lib/lifi';
+import { VAULT_REGISTRY, getVault, getVaultSlugs } from '@/lib/vault-registry';
 
 // Supported token symbols for validation
 const TOKEN_SYMBOLS = ['USDC', 'WETH', 'ETH', 'DAI'] as const;
@@ -445,6 +446,127 @@ export const scanYieldsTool = tool({
 });
 
 /**
+ * Prepare a deposit into an ERC-4626 vault (Morpho, etc.)
+ */
+export const prepareVaultDepositTool = tool({
+  description:
+    'Prepare a deposit into a curated ERC-4626 vault (Morpho, Moonwell, Seamless). Use this for Mid-Depth and Deep Water users who want higher yields than AAVE.',
+  inputSchema: z.object({
+    vaultSlug: z
+      .string()
+      .describe(
+        `Vault identifier. Available: ${getVaultSlugs().join(', ')}`
+      ),
+    amount: z.string().describe('Amount to deposit (human readable, e.g., "100")'),
+  }),
+  execute: async (input) => {
+    const { vaultSlug, amount } = input;
+    const vault = getVault(vaultSlug);
+
+    if (!vault) {
+      return {
+        error: true,
+        message: `Vault "${vaultSlug}" not found. Available vaults: ${getVaultSlugs().join(', ')}`,
+      };
+    }
+
+    // Fetch live APY from DeFi Llama for this vault's protocol
+    let apy: number | null = null;
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const response = await fetch(
+        `${baseUrl}/api/yields?token=${vault.underlyingToken}&maxRisk=3&limit=20`
+      );
+      const data = await response.json();
+      if (data.success && data.opportunities) {
+        const match = data.opportunities.find(
+          (o: { protocol: string }) => o.protocol === vault.protocol
+        );
+        if (match) apy = match.apy;
+      }
+    } catch {
+      // Use null - will show "Live rate" note
+    }
+
+    const yearlyReturn = apy
+      ? (parseFloat(amount) * (apy / 100)).toFixed(2)
+      : null;
+
+    return {
+      action: 'vault_deposit',
+      protocol: vault.protocol,
+      vaultSlug,
+      vaultName: vault.name,
+      curator: vault.curator,
+      token: vault.underlyingToken,
+      amount,
+      vaultAddress: vault.address,
+      underlyingAddress: vault.underlyingAddress,
+      underlyingDecimals: vault.underlyingDecimals,
+      chainId: vault.chainId,
+      estimatedApy: apy,
+      estimatedYearlyReturn: yearlyReturn
+        ? `${yearlyReturn} ${vault.underlyingToken}`
+        : undefined,
+      description: vault.description,
+      risks: [
+        `Smart contract risk (${vault.curator}-curated vault)`,
+        'ERC-4626 standard - funds can be withdrawn anytime',
+        'Yields are variable and may change',
+      ],
+      note: `Depositing into ${vault.name}, curated by ${vault.curator}.`,
+    };
+  },
+});
+
+/**
+ * Prepare a withdrawal from an ERC-4626 vault
+ */
+export const prepareVaultWithdrawTool = tool({
+  description:
+    'Prepare a withdrawal from an ERC-4626 vault. Returns transaction details for user approval.',
+  inputSchema: z.object({
+    vaultSlug: z
+      .string()
+      .describe(
+        `Vault identifier. Available: ${getVaultSlugs().join(', ')}`
+      ),
+    amount: z
+      .string()
+      .describe('Amount to withdraw (human readable), or "max" for full withdrawal'),
+  }),
+  execute: async (input) => {
+    const { vaultSlug, amount } = input;
+    const vault = getVault(vaultSlug);
+
+    if (!vault) {
+      return {
+        error: true,
+        message: `Vault "${vaultSlug}" not found. Available vaults: ${getVaultSlugs().join(', ')}`,
+      };
+    }
+
+    return {
+      action: 'vault_withdraw',
+      protocol: vault.protocol,
+      vaultSlug,
+      vaultName: vault.name,
+      curator: vault.curator,
+      token: vault.underlyingToken,
+      amount,
+      vaultAddress: vault.address,
+      underlyingAddress: vault.underlyingAddress,
+      underlyingDecimals: vault.underlyingDecimals,
+      chainId: vault.chainId,
+      note:
+        amount === 'max'
+          ? `This will withdraw your entire position from ${vault.name}.`
+          : null,
+    };
+  },
+});
+
+/**
  * All tools for the AI agent
  */
 export const tidalTools = {
@@ -455,4 +577,6 @@ export const tidalTools = {
   prepareWithdraw: prepareWithdrawTool,
   prepareSwap: prepareSwapTool,
   prepareSwapAndSupply: prepareSwapAndSupplyTool,
+  prepareVaultDeposit: prepareVaultDepositTool,
+  prepareVaultWithdraw: prepareVaultWithdrawTool,
 };

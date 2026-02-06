@@ -236,8 +236,8 @@ export function ChatPanelContent() {
                   if (tool.state === 'output-available') {
                     const result = tool.output as Record<string, unknown>;
 
-                    // ActionCard for supply/withdraw/swap actions
-                    if (result.action && ['supply', 'withdraw', 'swap', 'swap_and_supply'].includes(result.action as string)) {
+                    // ActionCard for supply/withdraw/swap/vault actions
+                    if (result.action && ['supply', 'withdraw', 'swap', 'swap_and_supply', 'vault_deposit', 'vault_withdraw'].includes(result.action as string)) {
                       return (
                         <ActionCard
                           key={idx}
@@ -254,6 +254,14 @@ export function ChatPanelContent() {
                           fromDecimals={result.fromDecimals as number | undefined}
                           toDecimals={result.toDecimals as number | undefined}
                           chainId={result.chainId as number | undefined}
+                          // Vault-specific props
+                          vaultSlug={result.vaultSlug as string | undefined}
+                          vaultName={result.vaultName as string | undefined}
+                          curator={result.curator as string | undefined}
+                          vaultAddress={result.vaultAddress as string | undefined}
+                          underlyingAddress={result.underlyingAddress as string | undefined}
+                          underlyingDecimals={result.underlyingDecimals as number | undefined}
+                          description={result.description as string | undefined}
                           // Display props
                           estimatedApy={result.estimatedApy as number | undefined}
                           estimatedYearlyReturn={result.estimatedYearlyReturn as string | undefined}

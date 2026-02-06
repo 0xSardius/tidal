@@ -8,6 +8,8 @@ import { base } from 'viem/chains';
 import { wagmiConfig } from '@/lib/wagmi';
 import { getSwapQuote, executeSwapFromQuote, configureLifi, type RouteExecutionStatus } from '@/lib/lifi';
 import { executeAaveSupply, executeAaveWithdraw, type AaveExecutionStatus, type AaveToken } from '@/lib/aave';
+import { executeVaultDeposit, executeVaultWithdraw, type VaultExecutionStatus } from '@/lib/vaults';
+import { getVault } from '@/lib/vault-registry';
 
 // Parse blockchain/wallet errors into friendly messages
 function friendlyError(err: unknown): string {
@@ -48,6 +50,14 @@ interface ActionCardProps {
   fromDecimals?: number;
   toDecimals?: number;
   chainId?: number;
+  // Vault-specific props
+  vaultSlug?: string;
+  vaultName?: string;
+  curator?: string;
+  vaultAddress?: string;
+  underlyingAddress?: string;
+  underlyingDecimals?: number;
+  description?: string;
   // Display props
   estimatedApy?: number;
   estimatedYearlyReturn?: string;
@@ -81,6 +91,13 @@ export function ActionCard({
   fromDecimals,
   toDecimals,
   chainId,
+  vaultSlug,
+  vaultName,
+  curator,
+  vaultAddress,
+  underlyingAddress,
+  underlyingDecimals,
+  description,
   estimatedApy,
   estimatedYearlyReturn,
   steps,
@@ -419,6 +436,134 @@ export function ActionCard({
         onError?.(errorMsg);
       }
     }
+    // For ERC-4626 vault deposit
+    else if (action === 'vault_deposit' && vaultSlug && amount) {
+      if (!publicClient) {
+        setError('Network connection not ready. Please try again.');
+        setStatus('failed');
+        return;
+      }
+
+      const vault = getVault(vaultSlug);
+      if (!vault) {
+        setError(`Vault "${vaultSlug}" not found.`);
+        setStatus('failed');
+        return;
+      }
+
+      setStatus('pending');
+      setStatusMessage('Preparing vault deposit...');
+      setError(undefined);
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        if (!wc) {
+          throw new Error('Wallet not ready. Please reconnect and try again.');
+        }
+
+        const result = await executeVaultDeposit({
+          vault,
+          amount,
+          userAddress: address,
+          walletClient: wc as never,
+          publicClient: publicClient as never,
+          onUpdate: (update: VaultExecutionStatus) => {
+            setStatusMessage(update.message);
+            if (update.txHash) {
+              setTxHash(update.txHash);
+            }
+            if (update.status === 'completed') {
+              setStatus('completed');
+            } else if (update.status === 'failed') {
+              setStatus('failed');
+            } else {
+              setStatus('executing');
+            }
+          },
+        });
+
+        if (result.success) {
+          setStatus('completed');
+          setStatusMessage('Deposit completed!');
+          onApprove?.();
+          if (result.txHash) onSuccess?.(result.txHash);
+        } else {
+          throw new Error(result.error || 'Vault deposit failed');
+        }
+      } catch (err) {
+        console.error('Vault deposit error:', err);
+        const errorMsg = friendlyError(err);
+        setError(errorMsg);
+        setStatus('failed');
+        setStatusMessage('');
+        onError?.(errorMsg);
+      }
+    }
+    // For ERC-4626 vault withdrawal
+    else if (action === 'vault_withdraw' && vaultSlug) {
+      if (!publicClient) {
+        setError('Network connection not ready. Please try again.');
+        setStatus('failed');
+        return;
+      }
+
+      const vault = getVault(vaultSlug);
+      if (!vault) {
+        setError(`Vault "${vaultSlug}" not found.`);
+        setStatus('failed');
+        return;
+      }
+
+      setStatus('pending');
+      setStatusMessage('Preparing vault withdrawal...');
+      setError(undefined);
+
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        if (!wc) {
+          throw new Error('Wallet not ready. Please reconnect and try again.');
+        }
+
+        const result = await executeVaultWithdraw({
+          vault,
+          amount: amount || 'max',
+          userAddress: address,
+          walletClient: wc as never,
+          publicClient: publicClient as never,
+          onUpdate: (update: VaultExecutionStatus) => {
+            setStatusMessage(update.message);
+            if (update.txHash) {
+              setTxHash(update.txHash);
+            }
+            if (update.status === 'completed') {
+              setStatus('completed');
+            } else if (update.status === 'failed') {
+              setStatus('failed');
+            } else {
+              setStatus('executing');
+            }
+          },
+        });
+
+        if (result.success) {
+          setStatus('completed');
+          setStatusMessage('Withdrawal completed!');
+          onApprove?.();
+          if (result.txHash) onSuccess?.(result.txHash);
+        } else {
+          throw new Error(result.error || 'Vault withdrawal failed');
+        }
+      } catch (err) {
+        console.error('Vault withdraw error:', err);
+        const errorMsg = friendlyError(err);
+        setError(errorMsg);
+        setStatus('failed');
+        setStatusMessage('');
+        onError?.(errorMsg);
+      }
+    }
     // For other/unknown actions, show error
     else {
       console.error('Unknown action or missing data:', { action, token, amount });
@@ -439,12 +584,16 @@ export function ActionCard({
                       action === 'withdraw' ? 'Withdraw from AAVE' :
                       action === 'swap' ? `Swap ${fromToken} → ${toToken}` :
                       action === 'swap_and_supply' ? 'Swap & Supply' :
+                      action === 'vault_deposit' ? `Deposit to ${vaultName || 'Vault'}` :
+                      action === 'vault_withdraw' ? `Withdraw from ${vaultName || 'Vault'}` :
                       action;
 
   const actionIcon = action === 'supply' ? '📥' :
                      action === 'withdraw' ? '📤' :
                      action === 'swap' ? '🔄' :
-                     action === 'swap_and_supply' ? '🔄' : '⚡';
+                     action === 'swap_and_supply' ? '🔄' :
+                     action === 'vault_deposit' ? '🦋' :
+                     action === 'vault_withdraw' ? '📤' : '⚡';
 
   const displayProvider = provider || protocol;
 
@@ -467,6 +616,12 @@ export function ActionCard({
               <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span className="text-[10px] font-bold tracking-wide text-cyan-300">Li.Fi</span>
+          </div>
+        )}
+        {(action === 'vault_deposit' || action === 'vault_withdraw') && curator && status !== 'completed' && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-400/20">
+            <span className="text-xs">🦋</span>
+            <span className="text-[10px] font-bold tracking-wide text-purple-300">Morpho</span>
           </div>
         )}
         {status === 'completed' && (
@@ -522,6 +677,23 @@ export function ActionCard({
               <span className="text-[10px] text-slate-600">Routed via Li.Fi across multiple DEXs</span>
               <span className="text-[10px] text-cyan-500/50 font-medium">Powered by Li.Fi</span>
             </div>
+          </div>
+        )}
+
+        {/* Vault info */}
+        {(action === 'vault_deposit' || action === 'vault_withdraw') && vaultName && (
+          <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/10">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-medium text-purple-300">{vaultName}</span>
+              {curator && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400">
+                  Curated by {curator}
+                </span>
+              )}
+            </div>
+            {description && (
+              <p className="text-[11px] text-slate-500 leading-relaxed">{description}</p>
+            )}
           </div>
         )}
 
