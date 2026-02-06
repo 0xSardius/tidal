@@ -296,8 +296,13 @@ When user is Mid-Depth:
 - [x] /api/yields route - DeFi Llama fetch, Base filter, 5-min cache, risk assessment
 - [x] scanYields AI tool - compares yields across protocols per tier
 - [x] Tier-specific AI prompt (Shallows=AAVE only, Mid-Depth=multi-protocol scan)
-- [x] Tier-specific welcome messages with ocean metaphors
-- [x] Verified: Shallows returns 8 blue-chip pools (AAVE 3.91%), Mid-Depth unlocks 83 pools (up to 20% APY)
+- [x] Tier-specific welcome messages with ocean metaphors (client + server)
+- [x] Verified: Shallows returns AAVE only (3.91%), Mid-Depth unlocks Morpho + others (up to 20% APY)
+- [x] Sidebar StrategyCards component with live DeFi Llama APYs, protocol icons, "Best Rate" badge
+- [x] Click-to-chat: strategy cards dispatch messages to AI via custom event
+- [x] Risk assessment fix: AAVE = level 1 (Shallows), Morpho + others = level 2 (Mid-Depth)
+- [x] Tier switcher dropdown in sidebar (click "Your Depth" card to switch tiers)
+- [x] Shallows unlock hint ("Unlock more strategies at Mid-Depth")
 
 **AI Chat**
 - [x] AI tools: getQuote, getAaveRates, scanYields, prepareSupply, prepareWithdraw, prepareSwapAndSupply
