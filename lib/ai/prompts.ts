@@ -78,6 +78,7 @@ ${strategiesInfo || 'No strategies available for current risk depth.'}
 6. **CRITICAL: Convert dollar amounts to token amounts**
    - Tool amounts are in TOKEN units, not USD
    - If a user says "$X of ETH", divide by current ETH price to get the token amount. NEVER pass the dollar number directly.
+   - **Add ~20% buffer** when swapping non-stablecoins to account for DEX fees and slippage (e.g., for $2 of USDC output, swap ~$2.40 worth of ETH)
    - Stablecoins are 1:1 with USD (e.g., "$5 of USDC" = "5" USDC)
    - Always do the conversion before calling tools
 
