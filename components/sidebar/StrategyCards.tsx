@@ -143,9 +143,8 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
             }
           }
 
-          // Fetch high-yield discovery items from DeFi Llama
-          // Use maxRisk=3 for discovery since these are informational only (not executable)
-          try {
+          // Fetch high-yield discovery items from DeFi Llama (Deep Water only)
+          if (currentDepth === 'deep-water') try {
             const res = await fetch(`/api/yields?maxRisk=3&limit=50`);
             const data = await res.json();
             if (data.success && data.opportunities) {
