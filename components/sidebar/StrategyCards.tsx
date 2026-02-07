@@ -56,13 +56,21 @@ interface StrategyCardsProps {
 }
 
 export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
-  const { riskDepth } = useRiskDepth();
+  const { riskDepth, isLoaded } = useRiskDepth();
   const [entries, setEntries] = useState<SidebarEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const currentDepth = riskDepth || 'shallows';
 
   useEffect(() => {
+    // Wait until riskDepth is loaded from localStorage to avoid
+    // firing with the wrong depth and then re-firing
+    if (!isLoaded) return;
+
+    // Reset loading state when depth changes
+    setIsLoading(true);
+    setEntries([]);
+
     async function buildSidebar() {
       try {
         const result: SidebarEntry[] = [];
@@ -136,16 +144,17 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
           }
 
           // Fetch high-yield discovery items from DeFi Llama
+          // Use maxRisk=3 for discovery since these are informational only (not executable)
           try {
-            const res = await fetch(`/api/yields?maxRisk=${maxRisk}&limit=30`);
+            const res = await fetch(`/api/yields?maxRisk=3&limit=50`);
             const data = await res.json();
             if (data.success && data.opportunities) {
-              // Get non-executable protocols with APY > 5%
+              // Get non-executable protocols with meaningful APY
               const discoveries = (data.opportunities as DeFiLlamaOpp[])
                 .filter(o =>
                   !EXECUTABLE_PROTOCOLS.includes(o.protocol) &&
-                  o.apy >= 5 &&
-                  o.tvlUsd >= 500_000
+                  o.apy >= 3 &&
+                  o.tvlUsd >= 100_000
                 );
 
               // Deduplicate by protocol, keep highest APY
@@ -201,7 +210,7 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
       }
     }
     buildSidebar();
-  }, [currentDepth]);
+  }, [currentDepth, isLoaded]);
 
   const handleClick = (entry: SidebarEntry) => {
     if (onStrategyClick) {
