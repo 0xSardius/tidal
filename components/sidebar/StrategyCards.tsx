@@ -212,19 +212,19 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
     }
   };
 
-  const tierLabel = currentDepth === 'shallows' ? 'Safe Harbors' :
-                    currentDepth === 'mid-depth' ? 'Growth Currents' : 'Deep Opportunities';
-
-  // Split entries into executable and discovery sections
+  // Split entries
   const executableEntries = entries.filter(e => e.type !== 'discovery');
   const discoveryEntries = entries.filter(e => e.type === 'discovery');
 
+  // For Mid-Depth+: limit executable vaults to top 3
+  const showExecutable = currentDepth === 'shallows'
+    ? executableEntries
+    : executableEntries.slice(0, 3);
+
+  const isGrowthTier = currentDepth !== 'shallows';
+
   return (
     <div className="px-3 pb-2">
-      <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-xs text-slate-500 uppercase tracking-wider">{tierLabel}</span>
-      </div>
-
       {isLoading ? (
         <div className="space-y-2">
           <div className="h-14 bg-slate-800/50 rounded-lg animate-pulse" />
@@ -236,13 +236,61 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
         </div>
       ) : (
         <>
-          {/* Executable strategies */}
-          <div className="space-y-1.5">
-            {executableEntries.map((entry) => (
+          {/* === SCOUTED FIRST for Mid-Depth+ (the hook) === */}
+          {isGrowthTier && discoveryEntries.length > 0 && (
+            <>
+              <div className="flex items-center gap-2 mb-1.5 px-1">
+                <span className="text-[10px] font-semibold text-amber-400/80 uppercase tracking-wider">Scouted by Tidal</span>
+                <div className="flex-1 h-px bg-amber-500/10" />
+              </div>
+              <div className="space-y-1">
+                {discoveryEntries.map((entry) => (
+                  <button
+                    key={entry.id}
+                    onClick={() => handleClick(entry)}
+                    className="w-full text-left px-2.5 py-2 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/5 border border-amber-500/15 transition-all hover:brightness-125 hover:scale-[1.01] active:scale-[0.99] group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm flex-shrink-0">{entry.icon}</span>
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium text-slate-200 truncate">
+                            {entry.name}
+                          </div>
+                          <div className="text-[10px] text-slate-500 truncate">
+                            {entry.token}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <div className="text-sm font-bold tabular-nums text-emerald-400">
+                          {entry.apy?.toFixed(1)}%
+                        </div>
+                        <div className="text-[10px] text-slate-500">APY</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <p className="text-[9px] text-amber-500/40 text-center mt-1 mb-2">
+                Click to ask Tidal about risks & strategy
+              </p>
+            </>
+          )}
+
+          {/* === EXECUTABLE VAULTS === */}
+          <div className="flex items-center gap-2 mb-1.5 px-1">
+            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+              {isGrowthTier ? 'Ready to Deposit' : 'Safe Harbors'}
+            </span>
+            <div className="flex-1 h-px bg-white/5" />
+          </div>
+          <div className="space-y-1">
+            {showExecutable.map((entry) => (
               <button
                 key={entry.id}
                 onClick={() => handleClick(entry)}
-                className={`w-full text-left p-2.5 rounded-lg bg-gradient-to-r ${entry.color} border transition-all hover:brightness-125 hover:scale-[1.02] active:scale-[0.98] group`}
+                className={`w-full text-left px-2.5 py-2 rounded-lg bg-gradient-to-r ${entry.color} border transition-all hover:brightness-125 hover:scale-[1.01] active:scale-[0.99] group`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
@@ -274,61 +322,14 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                     )}
                   </div>
                 </div>
-                <div className="mt-1.5">
-                  <span className="text-[9px] text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                    Dive in with Tidal →
-                  </span>
-                </div>
               </button>
             ))}
+            {isGrowthTier && executableEntries.length > 3 && (
+              <p className="text-[9px] text-slate-600 text-center pt-0.5">
+                +{executableEntries.length - 3} more vaults · Ask Tidal
+              </p>
+            )}
           </div>
-
-          {/* Discovery section - high-yield protocols scouted by Tidal */}
-          {discoveryEntries.length > 0 && (
-            <>
-              <div className="flex items-center gap-2 mt-3 mb-1.5 px-1">
-                <span className="text-xs text-amber-500/70 uppercase tracking-wider">Scouted</span>
-                <div className="flex-1 h-px bg-amber-500/10" />
-              </div>
-              <div className="space-y-1.5">
-                {discoveryEntries.map((entry) => (
-                  <button
-                    key={entry.id}
-                    onClick={() => handleClick(entry)}
-                    className={`w-full text-left p-2.5 rounded-lg bg-gradient-to-r ${entry.color} border transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] group`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm flex-shrink-0">{entry.icon}</span>
-                        <div className="min-w-0">
-                          <div className="text-xs font-medium text-slate-300 truncate flex items-center gap-1.5">
-                            {entry.name}
-                            <span className="text-[8px] px-1 py-px rounded bg-amber-500/15 text-amber-400/80 font-medium">
-                              Scouted
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 truncate">
-                            {entry.subtitle}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0 ml-2">
-                        <div className="text-sm font-semibold tabular-nums text-emerald-400">
-                          {entry.apy?.toFixed(1)}%
-                        </div>
-                        <div className="text-[10px] text-slate-500">APY</div>
-                      </div>
-                    </div>
-                    <div className="mt-1.5">
-                      <span className="text-[9px] text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Ask Tidal about this →
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
         </>
       )}
 
