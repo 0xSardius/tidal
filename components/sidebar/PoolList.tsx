@@ -143,16 +143,18 @@ export function PoolList() {
         )}
       </div>
 
-      {/* Yield Opportunities - tier-aware */}
-      <StrategyCards
-        onStrategyClick={(message) => {
-          window.dispatchEvent(new CustomEvent('tidal:chat-message', { detail: message }));
-        }}
-      />
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Yield Opportunities - tier-aware */}
+        <StrategyCards
+          onStrategyClick={(message) => {
+            window.dispatchEvent(new CustomEvent('tidal:chat-message', { detail: message }));
+          }}
+        />
 
-      {/* Positions Summary */}
-      <div className="flex-1 overflow-y-auto px-3 space-y-1">
-        <div className="text-xs text-slate-500 uppercase tracking-wider mb-2 px-1">Active Positions</div>
+        {/* Positions Summary */}
+        <div className="px-3 space-y-1 pb-2">
+          <div className="text-xs text-slate-500 uppercase tracking-wider mb-2 px-1">Active Positions</div>
         {isLoading ? (
           <div className="space-y-2">
             <div className="h-12 bg-slate-800/50 rounded-lg animate-pulse" />
@@ -186,6 +188,7 @@ export function PoolList() {
             </div>
           ))
         )}
+        </div>
       </div>
 
       {/* User Section - dynamically loaded to avoid hydration issues */}
