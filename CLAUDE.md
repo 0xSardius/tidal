@@ -205,6 +205,60 @@ This is not another DeFi dashboard. Tidal is the **interface layer between users
 
 ---
 
+## Post-Hackathon: Product Roadmap & Grant Strategy
+
+Tidal has the foundation of a real product. The core thesis — **an AI agent that manages DeFi yield across risk tiers** — solves a genuine problem and scales well beyond the hackathon.
+
+### What We've Built (Hackathon)
+- AI agent that explains DeFi and executes real transactions on Base
+- Risk-tiered UX (Shallows/Mid-Depth/Deep Water) that personalizes recommendations
+- Generic ERC-4626 vault adapter — any new vault = one registry entry, zero code
+- Li.Fi as the universal swap/routing layer
+- DeFi Llama yield scanning across all Base protocols
+- YO Protocol integration (8.6% USDC APY, Coinbase Ventures backed)
+
+### Phase 2: Autonomous Yield Agent
+- **Auto-rebalancing**: "Monitor my positions, rebalance when APY delta > 1%"
+- **Scheduled scans**: Agent periodically checks yield landscape, notifies user of better opportunities
+- **Smart entry/exit**: Agent watches gas prices and timing to optimize transaction costs
+- **Position health monitoring**: Alert when vault TVL drops, APY changes significantly, or risk parameters shift
+
+### Phase 3: Cross-Chain Yield Optimization
+- Multi-chain yield comparison via DeFi Llama (Arbitrum, Optimism, Polygon, etc.)
+- Li.Fi bridges for cross-chain movement — one-click migration to higher yields
+- Break-even analysis: "Bridge cost is $0.50, you'll earn it back in 4 days at the higher rate"
+- Portfolio view across all chains
+
+### Phase 4: Advanced Strategies via Li.Fi
+- **LP position management**: Swap + provide liquidity + manage price ranges via AI
+- **Multi-step strategies**: Swap → bridge → deposit → stake in one conversational flow
+- **DCA automation**: "Buy $100 of ETH weekly and deposit to the best vault"
+- **Yield farming orchestration**: Claim rewards → swap to stablecoin → re-deposit
+
+### Phase 5: Protocol Expansion
+- Direct Moonwell adapter (cToken interface, 5-9% USDC APY)
+- Compound V3 integration
+- Aerodrome LP vaults (Deep Water tier)
+- Pendle yield tokenization strategies
+
+### Grant Targets
+
+| Program | Fit | Angle |
+|---------|-----|-------|
+| **Li.Fi Ecosystem Grants** | Strong | AI-first integration partner, showcases SDK as invisible routing layer |
+| **Base Builder Grants** | Strong | Onboarding mainstream users to Base DeFi via conversational AI |
+| **Morpho Grants** | Good | Driving deposits into Morpho vaults through AI recommendations |
+| **Coinbase Developer Grants** | Good | Smart Wallet + Base + Coinbase-backed protocols (YO) |
+| **Optimism RPGF** | Future | Cross-chain yield optimization benefits the Superchain ecosystem |
+
+### Competitive Positioning
+- **vs Yearn/Beefy**: Those are vaults. Tidal is the *advisor* layer that routes users to the right vault.
+- **vs DeFi dashboards (Zapper, DeBank)**: They show data. Tidal *acts* on it.
+- **vs robo-advisors (TradFi)**: Tidal brings that UX to DeFi with on-chain execution.
+- **Moat**: AI personalization (risk tiers) + universal vault adapter + Li.Fi routing = hard to replicate as a whole.
+
+---
+
 ## Mid-Depth Strategy: Morpho Blue Vaults + DeFi Llama Yield Scanning
 
 ### Why Morpho for Mid-Depth
@@ -398,20 +452,24 @@ When user is Mid-Depth:
 - [x] Risk assessment: AAVE=Shallows only, Morpho+=Mid-Depth
 - [ ] **TEST:** Switch to Mid-Depth, see multi-protocol yield comparison
 
-**Day 6 (Feb 7) - Generic ERC-4626 Vault Adapter**
-- [ ] Create `lib/vault-registry.ts` - curated vault addresses (Morpho Gauntlet, Steakhouse, etc.)
-- [ ] Create `lib/vaults.ts` - generic ERC-4626 deposit/withdraw/position helpers
-- [ ] Create `lib/hooks/useVault.ts` - vault position tracking across all registered vaults
-- [ ] Create `prepareVaultDeposit` / `prepareVaultWithdraw` AI tools (generic)
-- [ ] Add `vault_deposit` / `vault_withdraw` branches to ActionCard
-- [ ] **TEST:** Deposit USDC to Morpho Gauntlet vault via chat
+**Day 6 (Feb 7) - Generic ERC-4626 Vault Adapter** ✅
+- [x] Create `lib/vault-registry.ts` - 10 curated vaults (2 Shallows, 8 Mid-Depth)
+- [x] Create `lib/vaults.ts` - generic ERC-4626 deposit/withdraw/position helpers
+- [x] Create `prepareVaultDeposit` / `prepareVaultWithdraw` AI tools (generic)
+- [x] Add `vault_deposit` / `vault_withdraw` branches to ActionCard
+- [x] Restructured tiers: conservative Morpho → Shallows, reward-boosted → Mid-Depth
+- [x] Successfully deposited into Morpho vault via chat
+- [x] **TEST:** Deposit USDC to Morpho vault via chat ✅
 
-**Day 7 (Feb 8) - Dashboard + Multi-Vault Polish**
-- [ ] VaultPositions component showing all ERC-4626 positions in dashboard
-- [ ] Add 2-3 more vaults to registry (Steakhouse, Moonwell Flagship, etc.)
-- [ ] Update onboarding examples to match real strategies
-- [ ] Wire `prepareSwapAndVaultDeposit` combo (Li.Fi swap → vault deposit)
-- [ ] **TEST:** Full flow: swap ETH → USDC via Li.Fi → deposit to Morpho vault
+**Day 7 (Feb 8) - YO Protocol + Sidebar Polish** ✅
+- [x] Discovered YO Protocol (Coinbase Ventures, ERC-4626, 8.6% USDC APY)
+- [x] Added YO vaults to registry — zero new adapter code needed
+- [x] "Scouted by Tidal" discovery section for DeFi Llama high-yield protocols
+- [x] Tier-exclusive sidebar (Shallows ≠ Mid-Depth, no repeats)
+- [x] APY estimates on all sidebar cards
+- [x] Fixed sidebar scroll overflow
+- [x] Fixed scouted pools disappearing on tier switch (double-render guard)
+- [x] **TEST:** Switch to Mid-Depth, see YO at 8.6% + scouted protocols ✅
 
 ### Previously Completed (done early)
 
