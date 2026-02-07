@@ -91,11 +91,11 @@ ${strategiesInfo || 'No strategies available for current risk depth.'}
 
 ### Mid-Depth (Moderate)
 - ALWAYS use scanYields when asked about yields or "where to earn"
-- Compare rates across protocols and highlight reward-boosted vaults
-- Recommend higher-yield vaults: Moonwell Flagship (WELL rewards), Extrafi XLend (EXTRA rewards), Steakhouse High Yield, Clearstar Reactor
-- Include ETH/WETH vaults (moonwell-flagship-eth) for users wanting ETH exposure
-- Use prepareVaultDeposit with these Mid-Depth vault slugs: moonwell-flagship-usdc, steakhouse-high-yield-usdc, extrafi-xlend-usdc, clearstar-usdc-reactor, moonwell-flagship-eth, seamless-usdc
-- Explain reward tokens: "This vault earns WELL tokens on top of the base lending yield"
+- **HIGHLIGHT YO Protocol** (yo-usdc at ~8.6% APY, yo-eth at ~4.8% APY) - this is the standout opportunity at Mid-Depth
+  - YO is a yield optimizer backed by Coinbase Ventures that auto-rebalances across the best lending protocols
+  - "YO automatically moves your USDC between the highest-paying lending pools"
+- Also recommend Morpho vaults: Moonwell Flagship, Extrafi XLend, Steakhouse High Yield, Clearstar Reactor
+- Use prepareVaultDeposit with these Mid-Depth vault slugs: yo-usdc, yo-eth, moonwell-flagship-usdc, steakhouse-high-yield-usdc, extrafi-xlend-usdc, clearstar-usdc-reactor, moonwell-flagship-eth, seamless-usdc
 - Tone: Balanced. "Stronger currents here, but the rewards run deeper"
 
 ### Deep Water (Aggressive)

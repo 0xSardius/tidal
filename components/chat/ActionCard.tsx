@@ -619,10 +619,17 @@ export function ActionCard({
           </div>
         )}
         {(action === 'vault_deposit' || action === 'vault_withdraw') && curator && status !== 'completed' && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-400/20">
-            <span className="text-xs">🦋</span>
-            <span className="text-[10px] font-bold tracking-wide text-purple-300">Morpho</span>
-          </div>
+          protocol === 'yo' ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-400/20">
+              <span className="text-xs">🚀</span>
+              <span className="text-[10px] font-bold tracking-wide text-emerald-300">YO</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-indigo-500/20 border border-purple-400/20">
+              <span className="text-xs">🦋</span>
+              <span className="text-[10px] font-bold tracking-wide text-purple-300">Morpho</span>
+            </div>
+          )
         )}
         {status === 'completed' && (
           <span className="text-emerald-400 text-sm">✓ Done</span>

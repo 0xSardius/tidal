@@ -22,6 +22,7 @@ interface SidebarEntry {
 const STYLES = {
   aave: { color: 'from-cyan-500/20 to-cyan-600/10 border-cyan-500/20', icon: '🏛️' },
   morpho: { color: 'from-purple-500/20 to-purple-600/10 border-purple-500/20', icon: '🦋' },
+  yo: { color: 'from-emerald-500/20 to-green-600/10 border-emerald-500/20', icon: '🚀' },
   discovery: { color: 'from-amber-500/10 to-orange-500/5 border-amber-500/15', icon: '🔭' },
 };
 
@@ -38,7 +39,7 @@ const PROTOCOL_NAMES: Record<string, { name: string; icon: string }> = {
 };
 
 // Protocols we already have adapters for (don't show as discovery)
-const EXECUTABLE_PROTOCOLS = ['aave-v3', 'morpho-v1'];
+const EXECUTABLE_PROTOCOLS = ['aave-v3', 'morpho-v1', 'yo'];
 
 interface DeFiLlamaOpp {
   id: string;
@@ -93,13 +94,14 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
           const { VAULT_REGISTRY } = await import('@/lib/vault-registry');
           for (const [slug, vault] of Object.entries(VAULT_REGISTRY)) {
             if (vault.riskLevel === 1) {
+              const style = vault.protocol === 'yo' ? STYLES.yo : STYLES.morpho;
               result.push({
                 id: slug,
                 name: vault.name,
                 subtitle: `${vault.curator} · ${vault.underlyingToken}`,
                 token: vault.underlyingToken,
                 apy: vault.apyEstimate,
-                ...STYLES.morpho,
+                ...style,
                 type: 'vault',
                 vaultSlug: slug,
               });
@@ -117,6 +119,7 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                                vault.description.toLowerCase().includes('well') ||
                                vault.description.toLowerCase().includes('extra') ||
                                vault.description.toLowerCase().includes('seam');
+              const style = vault.protocol === 'yo' ? STYLES.yo : STYLES.morpho;
 
               result.push({
                 id: slug,
@@ -125,7 +128,7 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                 token: vault.underlyingToken,
                 apy: vault.apyEstimate,
                 badge: hasRewards ? 'rewards' : undefined,
-                ...STYLES.morpho,
+                ...style,
                 type: 'vault',
                 vaultSlug: slug,
               });

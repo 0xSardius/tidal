@@ -143,6 +143,40 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     apyEstimate: 3.1,
     description: 'Seamless Protocol USDC vault with SEAM rewards. ~$23M TVL.',
   },
+
+  // ============================
+  // YO PROTOCOL (ERC-4626 Yield Optimizer)
+  // Auto-rebalances across best lending protocols
+  // Coinbase Ventures backed, ~$80M TVL
+  // ============================
+
+  'yo-usdc': {
+    name: 'YO yoUSD',
+    protocol: 'yo',
+    curator: 'YO Labs',
+    address: '0x0000000f2eB9f69274678c76222B35eEc7588a65',
+    underlyingToken: 'USDC',
+    underlyingAddress: CONTRACTS.USDC,
+    underlyingDecimals: 6,
+    chainId: 8453,
+    riskLevel: 2,
+    apyEstimate: 8.6,
+    description: 'Yield optimizer that auto-rebalances USDC across top lending protocols. Coinbase Ventures backed. ~$25M TVL.',
+  },
+
+  'yo-eth': {
+    name: 'YO yoETH',
+    protocol: 'yo',
+    curator: 'YO Labs',
+    address: '0x3a43aec53490cb9fa922847385d82fe25d0e9de7',
+    underlyingToken: 'WETH',
+    underlyingAddress: CONTRACTS.WETH,
+    underlyingDecimals: 18,
+    chainId: 8453,
+    riskLevel: 2,
+    apyEstimate: 4.8,
+    description: 'Yield optimizer that auto-rebalances ETH across top lending protocols. Coinbase Ventures backed. ~$43M TVL.',
+  },
 } as const;
 
 export type VaultSlug = keyof typeof VAULT_REGISTRY;
