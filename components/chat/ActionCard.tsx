@@ -18,7 +18,7 @@ function friendlyError(err: unknown): string {
 
   if (lower.includes('user rejected') || lower.includes('user denied') || lower.includes('rejected the request'))
     return 'Transaction cancelled. You can try again when ready.';
-  if (lower.includes('insufficient funds') || lower.includes('exceeds balance') || lower.includes('insufficient balance'))
+  if (lower.includes('insufficient funds') || lower.includes('exceeds balance') || lower.includes('insufficient balance') || lower.includes('balance is too low') || lower.includes('balanceerror'))
     return 'Insufficient balance. Check that you have enough tokens and ETH for gas.';
   if (lower.includes('slippage') || lower.includes('price movement'))
     return 'Price moved too much during execution. Try again with a fresh quote.';
