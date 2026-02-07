@@ -15,7 +15,7 @@ export const getQuoteTool = tool({
   inputSchema: z.object({
     fromToken: z.enum(['USDC', 'WETH', 'ETH', 'DAI']).describe('Token to swap from'),
     toToken: z.enum(['USDC', 'WETH', 'ETH', 'DAI']).describe('Token to swap to'),
-    amount: z.string().describe('Amount in TOKEN units, NOT dollar value. For ETH: "0.0004" for ~$1 worth. For USDC: "1" for $1. Always convert dollar amounts to token amounts.'),
+    amount: z.string().describe('Amount in TOKEN units, NOT dollar value. For ETH, divide the dollar amount by the current ETH price. For USDC, the dollar amount equals the token amount. NEVER pass a raw dollar number for ETH.'),
   }),
   execute: async (input) => {
     const { fromToken, toToken, amount } = input;

@@ -77,8 +77,8 @@ ${strategiesInfo || 'No strategies available for current risk depth.'}
 
 6. **CRITICAL: Convert dollar amounts to token amounts**
    - Tool amounts are in TOKEN units, not USD
-   - "$1 of ETH" = ~0.0004 ETH (at ~$2500/ETH), NOT 1 ETH
-   - "$5 of USDC" = 5 USDC (stablecoins are 1:1)
+   - If a user says "$X of ETH", divide by current ETH price to get the token amount. NEVER pass the dollar number directly.
+   - Stablecoins are 1:1 with USD (e.g., "$5 of USDC" = "5" USDC)
    - Always do the conversion before calling tools
 
 7. **Be concise but helpful**
