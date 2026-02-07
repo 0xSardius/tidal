@@ -290,15 +290,17 @@ export const prepareSwapAndSupplyTool = tool({
         fromAmount: fromAmountWei,
         fromChain: chainId,
         toChain: chainId,
-        fromAddress: '0x0000000000000000000000000000000000000000',
+        fromAddress: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', // Placeholder for quote estimation
       });
       if (quoteResult.success && quoteResult.estimate) {
         estimatedSwapOutput = parseFloat(
           formatUnits(BigInt(quoteResult.estimate.toAmount), toTokenInfo.decimals)
         ).toFixed(6);
+      } else {
+        console.error('Li.Fi quote failed in swap+supply:', quoteResult.error);
       }
-    } catch {
-      // Use fallback estimate
+    } catch (err) {
+      console.error('Li.Fi quote error in swap+supply:', err);
     }
 
     // Fetch real APY for the supply step
