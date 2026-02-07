@@ -36,7 +36,7 @@ const WalletSection = dynamic(() => import('./WalletSection').then(mod => mod.Wa
 export function PoolList() {
   const { positions: aavePositions, totalValueUsd: aaveTotalUsd, isLoading: aaveLoading } = useAavePositions();
   const { positions: vaultPositions, totalValueUsd: vaultTotalUsd, isLoading: vaultLoading } = useVaultPositions();
-  const { riskDepth, setRiskDepth } = useRiskDepth();
+  const { riskDepth, setRiskDepth, isLoaded: depthLoaded } = useRiskDepth();
   const [showDepthPicker, setShowDepthPicker] = useState(false);
 
   const isLoading = aaveLoading || vaultLoading;
@@ -52,6 +52,27 @@ export function PoolList() {
     { key: 'mid-depth', apy: '5-10%' },
     { key: 'deep-water', apy: '10%+' },
   ];
+
+  // Don't render until we know the real depth from localStorage
+  if (!depthLoaded) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="p-4 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <span className="font-semibold text-lg tracking-tight">Tidal</span>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
