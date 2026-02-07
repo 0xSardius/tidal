@@ -24,12 +24,8 @@ const PROTOCOL_META: Record<string, { name: string; color: string; icon: string 
   'avantis': { name: 'Avantis', color: 'from-teal-500/20 to-teal-600/10 border-teal-500/20', icon: '⚡' },
 };
 
-// Protocols we can actually execute on - always pin these in the sidebar
-const FEATURED_PROTOCOLS: Record<string, string[]> = {
-  'shallows': ['aave-v3', 'morpho-v1'],
-  'mid-depth': ['aave-v3', 'morpho-v1'],
-  'deep-water': ['aave-v3', 'morpho-v1'],
-};
+// Protocols we can actually execute on - ONLY show these in the sidebar
+const EXECUTABLE_PROTOCOLS = ['aave-v3', 'morpho-v1'];
 
 function getProtocolMeta(protocol: string) {
   return PROTOCOL_META[protocol] || {
@@ -57,36 +53,32 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
   const currentDepth = riskDepth || 'shallows';
   const maxRisk = currentDepth === 'shallows' ? 1 : currentDepth === 'mid-depth' ? 2 : 3;
 
-  const featured = FEATURED_PROTOCOLS[currentDepth] || ['aave-v3'];
-
   useEffect(() => {
     async function fetchYields() {
       try {
-        // Fetch more results to ensure featured protocols are included
-        const res = await fetch(`/api/yields?token=USDC&maxRisk=${maxRisk}&limit=20`);
+        const res = await fetch(`/api/yields?maxRisk=${maxRisk}&limit=30`);
         const data = await res.json();
         if (data.success && data.opportunities) {
-          // Deduplicate by protocol - take the best APY per protocol
-          const byProtocol = new Map<string, YieldOpportunity>();
-          for (const opp of data.opportunities) {
-            const existing = byProtocol.get(opp.protocol);
-            if (!existing || opp.apy > existing.apy) {
-              byProtocol.set(opp.protocol, opp);
-            }
-          }
+          // Only show protocols we can actually execute on
+          const executable = data.opportunities.filter(
+            (opp: YieldOpportunity) => EXECUTABLE_PROTOCOLS.includes(opp.protocol)
+          );
 
-          const all = Array.from(byProtocol.values());
+          // For AAVE: deduplicate to best rate (it has multiple pool entries)
+          // For Morpho: keep individual entries (they represent different vaults)
+          const aaveBest = executable
+            .filter((o: YieldOpportunity) => o.protocol === 'aave-v3')
+            .sort((a: YieldOpportunity, b: YieldOpportunity) => b.apy - a.apy)[0];
+          const morphoVaults = executable
+            .filter((o: YieldOpportunity) => o.protocol === 'morpho-v1')
+            .sort((a: YieldOpportunity, b: YieldOpportunity) => b.apy - a.apy);
 
-          // Split into featured (pinned) and others
-          const pinnedItems = featured
-            .map((p) => all.find((o) => o.protocol === p))
-            .filter(Boolean) as YieldOpportunity[];
-          const otherItems = all
-            .filter((o) => !featured.includes(o.protocol))
-            .sort((a, b) => b.apy - a.apy);
+          // AAVE first, then Morpho vaults sorted by APY
+          const combined: YieldOpportunity[] = [];
+          if (aaveBest) combined.push(aaveBest);
+          combined.push(...morphoVaults);
 
-          // Featured first, then best remaining
-          setOpportunities([...pinnedItems, ...otherItems]);
+          setOpportunities(combined);
         }
       } catch (err) {
         console.error('Failed to fetch yields:', err);
@@ -95,22 +87,22 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
       }
     }
     fetchYields();
-  }, [maxRisk, featured.join(',')]);
+  }, [maxRisk]);
 
   const handleClick = (opp: YieldOpportunity) => {
     const meta = getProtocolMeta(opp.protocol);
-    const isFeatured = featured.includes(opp.protocol);
     if (onStrategyClick) {
-      if (isFeatured) {
+      if (opp.protocol === 'aave-v3') {
         onStrategyClick(`I'd like to earn yield on USDC with ${meta.name}. What's the current rate?`);
       } else {
-        onStrategyClick(`Tell me about the ${opp.symbol} yield on ${meta.name}`);
+        // For Morpho vaults, mention the specific pool
+        onStrategyClick(`I'd like to deposit into a ${meta.name} vault for ${opp.symbol}. What are my options?`);
       }
     }
   };
 
-  // Limit display: Shallows=2, Mid-Depth=5, Deep Water=6
-  const displayLimit = currentDepth === 'shallows' ? 2 : currentDepth === 'mid-depth' ? 5 : 6;
+  // Limit display: Shallows=3, Mid-Depth=6, Deep Water=8
+  const displayLimit = currentDepth === 'shallows' ? 3 : currentDepth === 'mid-depth' ? 6 : 8;
   const displayed = opportunities.slice(0, displayLimit);
 
   return (
@@ -133,14 +125,11 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
         </div>
       ) : (
         <div className="space-y-1.5">
-          {displayed.map((opp) => {
+          {displayed.map((opp, index) => {
             const meta = getProtocolMeta(opp.protocol);
-            const isFeatured = featured.includes(opp.protocol);
-            // Best rate is the highest APY among non-featured (discovery) protocols
-            const highestDiscoveryApy = displayed
-              .filter((o) => !featured.includes(o.protocol))
-              .reduce((max, o) => Math.max(max, o.apy), 0);
-            const isBestRate = !isFeatured && opp.apy === highestDiscoveryApy && opp.apy > 0;
+            const hasRewards = opp.apyReward && opp.apyReward > 0;
+            // Highest APY among displayed gets "Best Rate" badge
+            const isBestRate = index > 0 && opp.apy === Math.max(...displayed.map(o => o.apy));
             return (
               <button
                 key={opp.id}
@@ -153,9 +142,9 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                     <div className="min-w-0">
                       <div className="text-xs font-medium text-slate-200 truncate flex items-center gap-1.5">
                         {meta.name}
-                        {isFeatured && (
-                          <span className="text-[8px] px-1 py-px rounded bg-cyan-500/20 text-cyan-400 font-medium">
-                            Supported
+                        {hasRewards && (
+                          <span className="text-[8px] px-1 py-px rounded bg-emerald-500/20 text-emerald-400 font-medium">
+                            + Rewards
                           </span>
                         )}
                       </div>
@@ -181,7 +170,7 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                     </span>
                   </div>
                 )}
-                {isFeatured && !isBestRate && (
+                {!isBestRate && (
                   <div className="mt-1.5">
                     <span className="text-[9px] text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
                       Dive in with Tidal →
