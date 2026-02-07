@@ -80,24 +80,26 @@ export function useVaultPositions() {
     query: { enabled: vaultsWithShares.length > 0 },
   });
 
-  // Step 3: Build position objects
+  // Step 3: Build position objects (only include vaults where convertToAssets succeeded)
   const positions: VaultPosition[] = useMemo(() => {
-    return vaultsWithShares.map((item, i) => {
-      const assets =
-        assetResults?.[i]?.status === 'success'
-          ? (assetResults[i].result as bigint)
-          : item.shares; // fallback: shares ≈ assets
-      return {
-        vaultSlug: item.slug,
-        vaultName: item.vault.name,
-        protocol: item.vault.protocol,
-        token: item.vault.underlyingToken,
-        shares: item.shares,
-        assets,
-        assetsFormatted: formatUnits(assets, item.vault.underlyingDecimals),
-        apyEstimate: item.vault.apyEstimate,
-      };
-    });
+    return vaultsWithShares
+      .map((item, i) => {
+        // Only use the position if convertToAssets resolved correctly
+        // Vault shares are 18 decimals but underlying may be 6 (USDC) — never use shares as fallback
+        if (assetResults?.[i]?.status !== 'success') return null;
+        const assets = assetResults[i].result as bigint;
+        return {
+          vaultSlug: item.slug,
+          vaultName: item.vault.name,
+          protocol: item.vault.protocol,
+          token: item.vault.underlyingToken,
+          shares: item.shares,
+          assets,
+          assetsFormatted: formatUnits(assets, item.vault.underlyingDecimals),
+          apyEstimate: item.vault.apyEstimate,
+        };
+      })
+      .filter((p): p is NonNullable<typeof p> => p !== null);
   }, [vaultsWithShares, assetResults]);
 
   const totalValueUsd = useMemo(
