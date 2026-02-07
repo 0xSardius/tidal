@@ -17,6 +17,7 @@ export interface VaultEntry {
   underlyingDecimals: number;
   chainId: number;
   riskLevel: 1 | 2 | 3; // Maps to Shallows / Mid-Depth / Deep Water
+  apyEstimate: number; // Approximate APY from Morpho API research (updated periodically)
   description: string;
 }
 
@@ -36,6 +37,7 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 6,
     chainId: 8453,
     riskLevel: 1,
+    apyEstimate: 3.4,
     description: 'Institutional-grade USDC vault. Coinbase routes lending through this vault. ~$440M TVL.',
   },
 
@@ -49,6 +51,7 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 6,
     chainId: 8453,
     riskLevel: 1,
+    apyEstimate: 3.4,
     description: 'Risk-optimized USDC vault curated by Gauntlet. Blue-chip collateral only. ~$296M TVL.',
   },
 
@@ -67,7 +70,8 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 6,
     chainId: 8453,
     riskLevel: 2,
-    description: 'Reward-boosted USDC vault with WELL token incentives. ~$15M TVL, ~3.8% APY.',
+    apyEstimate: 3.8,
+    description: 'Reward-boosted USDC vault with WELL token incentives. ~$15M TVL.',
   },
 
   'steakhouse-high-yield-usdc': {
@@ -80,7 +84,8 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 6,
     chainId: 8453,
     riskLevel: 2,
-    description: 'Aggressive Steakhouse vault with higher-yield market allocations. ~$7.7M TVL, ~3.5% APY.',
+    apyEstimate: 3.5,
+    description: 'Aggressive Steakhouse vault with higher-yield market allocations. ~$7.7M TVL.',
   },
 
   'extrafi-xlend-usdc': {
@@ -93,7 +98,8 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 6,
     chainId: 8453,
     riskLevel: 2,
-    description: 'USDC vault with EXTRA token rewards on top of base yield. ~$5.4M TVL, ~3.9% APY.',
+    apyEstimate: 3.9,
+    description: 'USDC vault with EXTRA token rewards on top of base yield. ~$5.4M TVL.',
   },
 
   'clearstar-usdc-reactor': {
@@ -106,7 +112,8 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 6,
     chainId: 8453,
     riskLevel: 2,
-    description: 'Aggressive USDC vault with highest base yield among Morpho vaults. ~$2.9M TVL, ~4.1% APY.',
+    apyEstimate: 4.1,
+    description: 'Aggressive USDC vault with highest base yield among Morpho vaults. ~$2.9M TVL.',
   },
 
   'moonwell-flagship-eth': {
@@ -119,7 +126,8 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 18,
     chainId: 8453,
     riskLevel: 2,
-    description: 'ETH vault with WELL token rewards. Earn yield on ETH holdings. ~$13.2M TVL, ~2.9% APY.',
+    apyEstimate: 2.9,
+    description: 'ETH vault with WELL token rewards. Earn yield on ETH holdings. ~$13.2M TVL.',
   },
 
   'seamless-usdc': {
@@ -132,7 +140,8 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 6,
     chainId: 8453,
     riskLevel: 2,
-    description: 'Seamless Protocol USDC vault with SEAM rewards. ~$23M TVL, ~3.1% APY.',
+    apyEstimate: 3.1,
+    description: 'Seamless Protocol USDC vault with SEAM rewards. ~$23M TVL.',
   },
 } as const;
 

@@ -55,29 +55,18 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
           ([, v]) => showRisks.includes(v.riskLevel)
         );
 
-        // Fetch live APY data from DeFi Llama
+        // Fetch AAVE APY from DeFi Llama (only needed for Shallows)
         let aaveApy: number | null = null;
-        const morphoApys = new Map<string, number>();
-        try {
-          const res = await fetch(`/api/yields?maxRisk=3&limit=50`);
-          const data = await res.json();
-          if (data.success && data.opportunities) {
-            for (const opp of data.opportunities) {
-              if (opp.protocol === 'aave-v3' && opp.symbol?.includes('USDC') && !aaveApy) {
-                aaveApy = opp.apy;
-              }
-              // Match Morpho pools by symbol to vault entries
-              if (opp.protocol === 'morpho-v1') {
-                // Store all morpho APYs keyed by symbol for matching
-                const key = opp.symbol?.toLowerCase() || '';
-                if (!morphoApys.has(key) || opp.apy > (morphoApys.get(key) || 0)) {
-                  morphoApys.set(key, opp.apy);
-                }
-              }
+        if (showAave) {
+          try {
+            const res = await fetch(`/api/aave/rates`);
+            const data = await res.json();
+            if (data.success && data.rates?.USDC?.apy) {
+              aaveApy = data.rates.USDC.apy;
             }
+          } catch {
+            aaveApy = 3.5; // Fallback
           }
-        } catch {
-          // Continue with null APYs
         }
 
         const result: SidebarEntry[] = [];
@@ -96,13 +85,8 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
           });
         }
 
-        // Add vault entries from registry
+        // Add vault entries from registry with their estimated APYs
         for (const [slug, vault] of tierVaults) {
-          // Try to find a matching APY from DeFi Llama
-          const tokenKey = vault.underlyingToken.toLowerCase();
-          const matchedApy = morphoApys.get(tokenKey) || null;
-
-          // Vaults with reward descriptions get the badge
           const hasRewards = vault.description.toLowerCase().includes('reward') ||
                            vault.description.toLowerCase().includes('well') ||
                            vault.description.toLowerCase().includes('extra') ||
@@ -113,7 +97,7 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
             name: vault.name,
             curator: vault.curator,
             token: vault.underlyingToken,
-            apy: matchedApy,
+            apy: vault.apyEstimate,
             hasRewards,
             ...STYLES.morpho,
             type: 'vault',
@@ -121,14 +105,11 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
           });
         }
 
-        // Sort: AAVE first, then vaults by APY (highest first), nulls last
+        // Sort: AAVE first, then vaults by APY (highest first)
         result.sort((a, b) => {
           if (a.type === 'aave') return -1;
           if (b.type === 'aave') return 1;
-          if (a.apy === null && b.apy === null) return 0;
-          if (a.apy === null) return 1;
-          if (b.apy === null) return -1;
-          return b.apy - a.apy;
+          return (b.apy || 0) - (a.apy || 0);
         });
 
         setEntries(result);
