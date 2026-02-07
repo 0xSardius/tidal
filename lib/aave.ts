@@ -338,10 +338,25 @@ export async function executeAaveSupply(params: {
     const addresses = getAaveAddresses(chainId);
     const tokenAddress = (addresses.tokens as Record<string, Address>)[token];
     const decimals = TOKEN_DECIMALS[token];
-    const amountWei = parseUnits(amount, decimals);
 
     if (!tokenAddress) {
       throw new Error(`Token ${token} not supported on chain ${chainId}`);
+    }
+
+    // Handle 'max' by reading the user's full token balance
+    let amountWei: bigint;
+    if (amount === 'max') {
+      amountWei = await publicClient.readContract({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [userAddress],
+      });
+      if (amountWei === 0n) {
+        throw new Error(`No ${token} balance to supply`);
+      }
+    } else {
+      amountWei = parseUnits(amount, decimals);
     }
 
     // Check allowance first
