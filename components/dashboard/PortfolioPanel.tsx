@@ -3,17 +3,30 @@
 import { YieldRates } from './YieldRates';
 import { AavePositions } from './AavePositions';
 import { useAavePositions } from '@/lib/hooks/useAave';
+import { useVaultPositions } from '@/lib/hooks/useVaultPositions';
 import { useAccount } from 'wagmi';
 
 export function PortfolioPanel() {
   const { isConnected } = useAccount();
-  const { positions, totalValueUsd, isLoading } = useAavePositions();
+  const { positions: aavePositions, totalValueUsd: aaveTotalUsd, isLoading: aaveLoading } = useAavePositions();
+  const { positions: vaultPositions, totalValueUsd: vaultTotalUsd, isLoading: vaultLoading } = useVaultPositions();
 
-  // Calculate stats from real positions
-  const avgApy = positions.length > 0
-    ? positions.reduce((sum, p) => sum + p.currentApy, 0) / positions.length
+  const isLoading = aaveLoading || vaultLoading;
+  const totalValueUsd = aaveTotalUsd + vaultTotalUsd;
+
+  // Build combined positions for stats
+  const allPositions = [
+    ...aavePositions.map(p => ({ token: p.token, value: parseFloat(p.suppliedFormatted), apy: p.currentApy, label: 'AAVE V3' })),
+    ...vaultPositions.map(p => ({ token: p.token, value: parseFloat(p.assetsFormatted), apy: p.apyEstimate, label: p.vaultName })),
+  ];
+
+  const avgApy = allPositions.length > 0
+    ? allPositions.reduce((sum, p) => sum + p.apy, 0) / allPositions.length
     : 0;
   const dailyYield = totalValueUsd > 0 ? (totalValueUsd * avgApy) / 100 / 365 : 0;
+
+  // For backward compat with allocation bar
+  const positions = allPositions;
 
   return (
     <div className="flex flex-col h-full">
@@ -55,25 +68,25 @@ export function PortfolioPanel() {
           <div className="h-3 rounded-full overflow-hidden bg-white/5 flex">
             {positions.map((position, i) => {
               const width = totalValueUsd > 0
-                ? (Number(position.suppliedFormatted) / totalValueUsd) * 100
+                ? (position.value / totalValueUsd) * 100
                 : 100 / positions.length;
-              const colors = ['bg-cyan-500', 'bg-purple-500', 'bg-teal-500'];
+              const colors = ['bg-cyan-500', 'bg-purple-500', 'bg-emerald-500', 'bg-teal-500'];
               return (
                 <div
-                  key={position.token}
+                  key={`${position.label}-${position.token}`}
                   className={`${colors[i % colors.length]} transition-all duration-500`}
-                  style={{ width: `${width}%` }}
+                  style={{ width: `${Math.max(width, 2)}%` }}
                 />
               );
             })}
           </div>
-          <div className="flex justify-between mt-2 text-xs">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs">
             {positions.map((position, i) => {
-              const colors = ['text-cyan-400', 'text-purple-400', 'text-teal-400'];
+              const colors = ['text-cyan-400', 'text-purple-400', 'text-emerald-400', 'text-teal-400'];
               return (
-                <span key={position.token} className={`flex items-center gap-1 ${colors[i % colors.length]}`}>
+                <span key={`${position.label}-${position.token}`} className={`flex items-center gap-1 ${colors[i % colors.length]}`}>
                   <span className="w-2 h-2 rounded-full bg-current" />
-                  {position.token}
+                  {position.token} · {position.label}
                 </span>
               );
             })}

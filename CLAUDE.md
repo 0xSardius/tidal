@@ -544,10 +544,46 @@ When user is Mid-Depth:
 ### Notes
 - **NOW ON BASE MAINNET** - Budget: $20-50 USDC for testing
 - Deadline: Feb 11, 2026
-- AI SDK v6.0.65 uses toUIMessageStreamResponse() not toDataStreamResponse()
-- **AI SDK v6 Pattern**: `convertToModelMessages()` is ASYNC - must `await` it!
-- **Privy/wagmi**: Import `createConfig` and `WagmiProvider` from `@privy-io/wagmi`, NOT from `wagmi`
-- Dashboard uses real AAVE data (positions + APY) - no more hardcoded values
-- **Morpho vaults are ERC-4626** - standard interface: `deposit(assets, receiver)`, `redeem(shares, receiver, owner)`
-- **DeFi Llama API** is free, no auth: `GET https://yields.llama.fi/pools` - cache 5-10 min, filter `chain === "Base"`
-- **Mid-Depth differentiator**: AI scans yields across protocols, recommends Morpho when APY > AAVE
+
+### Lessons Learned (Battle-Tested)
+
+**AI SDK v6**
+- `toUIMessageStreamResponse()` not `toDataStreamResponse()` — the v6 migration renamed this
+- `convertToModelMessages()` is ASYNC — must `await` it! Silent failure if you don't
+- Tool results with `type: 'tool-result'` parts need careful handling in message display
+
+**Privy + Wagmi**
+- Import `createConfig` and `WagmiProvider` from `@privy-io/wagmi`, NOT from `wagmi`
+- Wallet client can be undefined on first render — guard all `walletClient.writeContract` calls
+- `useWalletClient()` returns `{ data: walletClient }` — destructure correctly
+- Smart Wallets may need gas sponsorship setup for UX
+
+**ERC-4626 Vaults**
+- Standard interface: `deposit(assets, receiver)`, `redeem(shares, receiver, owner)`, `balanceOf`, `convertToAssets`
+- Works identically for Morpho MetaMorpho AND YO Protocol — truly universal
+- Adding a new protocol = one registry entry, zero adapter code
+- Always check `allowance` before deposit — ERC-20 approve is a separate tx
+- Use `useReadContracts` (wagmi multicall) to batch-read all vault balances efficiently
+
+**Position Tracking**
+- Executing transactions != displaying positions — these are separate data flows
+- After tx success, you must explicitly refetch position data (wagmi doesn't auto-refetch)
+- Use wagmi multicall (`useReadContracts`) for reading multiple vault positions in one RPC call
+
+**React / Next.js**
+- `useState(null)` + localStorage read in `useEffect` = double-render on hydration — guard dependent effects with `isLoaded`
+- `flex-1 overflow-y-auto` needs `min-h-0` on the flex child to actually scroll
+- Dynamic imports with `ssr: false` fix hydration mismatches for wallet-dependent components
+- React hooks can't be called in loops — use `useReadContracts` (multicall) instead of mapping over `useReadContract`
+
+**DeFi Llama API**
+- Free, no auth: `GET https://yields.llama.fi/pools` — ~10-15MB response, cache 5-10 min
+- Filter: `chain === "Base"`, `apy > 0 && apy < 100`, `tvlUsd > 100_000`
+- Risk mapping: `exposure === "single" && ilRisk === "no"` = safe for Shallows/Mid-Depth
+- Protocol deduplication collapses all Morpho vaults into one — use vault registry for sidebar, not DeFi Llama
+
+**UI/UX Patterns**
+- Tier-exclusive display prevents confusion (Shallows ≠ Mid-Depth, no repeats)
+- "Scouted by Tidal" section should appear FIRST in Mid-Depth as the hook (higher yields catch the eye)
+- Limit shown vaults to top 3 + "+N more" to prevent scroll fatigue
+- Always show protocol name alongside token in position cards (user has USDC in multiple places)

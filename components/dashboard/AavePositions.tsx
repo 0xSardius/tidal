@@ -1,11 +1,18 @@
 'use client';
 
 import { useAavePositions } from '@/lib/hooks/useAave';
+import { useVaultPositions } from '@/lib/hooks/useVaultPositions';
 import { useAccount } from 'wagmi';
 
 export function AavePositions() {
   const { isConnected } = useAccount();
-  const { positions, totalValueUsd, isLoading, refetch } = useAavePositions();
+  const { positions, totalValueUsd: aaveTotalUsd, isLoading: aaveLoading, refetch: refetchAave } = useAavePositions();
+  const { positions: vaultPositions, totalValueUsd: vaultTotalUsd, isLoading: vaultLoading, refetch: refetchVaults } = useVaultPositions();
+
+  const isLoading = aaveLoading || vaultLoading;
+  const totalValueUsd = aaveTotalUsd + vaultTotalUsd;
+  const hasAny = positions.length > 0 || vaultPositions.length > 0;
+  const refetch = () => { refetchAave(); refetchVaults(); };
 
   if (!isConnected) {
     return (
@@ -19,7 +26,7 @@ export function AavePositions() {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider">
-          Your AAVE Positions
+          Your Positions
         </h3>
         <button
           onClick={() => refetch()}
@@ -34,7 +41,7 @@ export function AavePositions() {
           <div className="h-16 bg-slate-800/50 rounded-lg animate-pulse" />
           <div className="h-16 bg-slate-800/50 rounded-lg animate-pulse" />
         </div>
-      ) : positions.length === 0 ? (
+      ) : !hasAny ? (
         <div className="p-6 bg-slate-800/30 rounded-lg border border-dashed border-slate-700 text-center">
           <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-700/50 flex items-center justify-center">
             <svg
@@ -53,29 +60,30 @@ export function AavePositions() {
           </div>
           <p className="text-sm text-slate-400 mb-1">No active positions</p>
           <p className="text-xs text-slate-500">
-            Supply assets to AAVE to start earning yield
+            Chat with Tidal to start earning yield
           </p>
         </div>
       ) : (
         <>
           <div className="grid gap-2">
+            {/* AAVE Positions */}
             {positions.map((position) => (
               <div
-                key={position.token}
+                key={`aave-${position.token}`}
                 className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50"
               >
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center ${
                       position.token === 'USDC'
-                        ? 'bg-blue-500/20'
+                        ? 'bg-cyan-500/20'
                         : 'bg-purple-500/20'
                     }`}
                   >
                     <span
                       className={`text-xs font-bold ${
                         position.token === 'USDC'
-                          ? 'text-blue-400'
+                          ? 'text-cyan-400'
                           : 'text-purple-400'
                       }`}
                     >
@@ -87,7 +95,42 @@ export function AavePositions() {
                       {position.suppliedFormatted} {position.token}
                     </p>
                     <p className="text-xs text-slate-500">
-                      {position.currentApy.toFixed(2)}% APY
+                      AAVE V3 · {position.currentApy.toFixed(2)}% APY
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-emerald-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Earning
+                  </p>
+                </div>
+              </div>
+            ))}
+            {/* Vault Positions */}
+            {vaultPositions.map((position) => (
+              <div
+                key={`vault-${position.vaultSlug}`}
+                className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                      position.protocol === 'yo'
+                        ? 'bg-emerald-500/20'
+                        : 'bg-purple-500/20'
+                    }`}
+                  >
+                    <span className="text-xs">
+                      {position.protocol === 'yo' ? '🚀' : '🦋'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">
+                      {parseFloat(position.assetsFormatted).toFixed(2)} {position.token}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {position.vaultName} · {position.apyEstimate.toFixed(1)}% APY
                     </p>
                   </div>
                 </div>
