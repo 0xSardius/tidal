@@ -21,7 +21,10 @@ export interface VaultEntry {
 }
 
 export const VAULT_REGISTRY: Record<string, VaultEntry> = {
-  // === Morpho Vaults (Curated by top risk managers) ===
+  // ============================
+  // SHALLOWS (Risk Level 1)
+  // Conservative, institutional-grade, high TVL
+  // ============================
 
   'steakhouse-prime-usdc': {
     name: 'Steakhouse Prime USDC',
@@ -32,7 +35,7 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingAddress: CONTRACTS.USDC,
     underlyingDecimals: 6,
     chainId: 8453,
-    riskLevel: 2,
+    riskLevel: 1,
     description: 'Institutional-grade USDC vault. Coinbase routes lending through this vault. ~$440M TVL.',
   },
 
@@ -45,9 +48,14 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingAddress: CONTRACTS.USDC,
     underlyingDecimals: 6,
     chainId: 8453,
-    riskLevel: 2,
+    riskLevel: 1,
     description: 'Risk-optimized USDC vault curated by Gauntlet. Blue-chip collateral only. ~$296M TVL.',
   },
+
+  // ============================
+  // MID-DEPTH (Risk Level 2)
+  // Higher yield, reward-boosted, more aggressive strategies
+  // ============================
 
   'moonwell-flagship-usdc': {
     name: 'Moonwell Flagship USDC',
@@ -59,7 +67,59 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 6,
     chainId: 8453,
     riskLevel: 2,
-    description: 'Moonwell-curated USDC vault on Morpho. Blue-chip collateral markets. ~$15M TVL.',
+    description: 'Reward-boosted USDC vault with WELL token incentives. ~$15M TVL, ~3.8% APY.',
+  },
+
+  'steakhouse-high-yield-usdc': {
+    name: 'Steakhouse High Yield USDC',
+    protocol: 'morpho-v1',
+    curator: 'Steakhouse Financial',
+    address: '0xBEEFA7B88064FeEF0cEe02AAeBBd95D30df3878F',
+    underlyingToken: 'USDC',
+    underlyingAddress: CONTRACTS.USDC,
+    underlyingDecimals: 6,
+    chainId: 8453,
+    riskLevel: 2,
+    description: 'Aggressive Steakhouse vault with higher-yield market allocations. ~$7.7M TVL, ~3.5% APY.',
+  },
+
+  'extrafi-xlend-usdc': {
+    name: 'Extrafi XLend USDC',
+    protocol: 'morpho-v1',
+    curator: 'Extrafi',
+    address: '0x23479229e52Ab6aaD312D0B03DF9F33B46753B5e',
+    underlyingToken: 'USDC',
+    underlyingAddress: CONTRACTS.USDC,
+    underlyingDecimals: 6,
+    chainId: 8453,
+    riskLevel: 2,
+    description: 'USDC vault with EXTRA token rewards on top of base yield. ~$5.4M TVL, ~3.9% APY.',
+  },
+
+  'clearstar-usdc-reactor': {
+    name: 'Clearstar USDC Reactor',
+    protocol: 'morpho-v1',
+    curator: 'Clearstar',
+    address: '0x1D3b1Cd0a0f242d598834b3F2d126dC6bd774657',
+    underlyingToken: 'USDC',
+    underlyingAddress: CONTRACTS.USDC,
+    underlyingDecimals: 6,
+    chainId: 8453,
+    riskLevel: 2,
+    description: 'Aggressive USDC vault with highest base yield among Morpho vaults. ~$2.9M TVL, ~4.1% APY.',
+  },
+
+  'moonwell-flagship-eth': {
+    name: 'Moonwell Flagship ETH',
+    protocol: 'morpho-v1',
+    curator: 'B.Protocol',
+    address: '0xa0E430870c4604CcfC7B38Ca7845B1FF653D0ff1',
+    underlyingToken: 'WETH',
+    underlyingAddress: CONTRACTS.WETH,
+    underlyingDecimals: 18,
+    chainId: 8453,
+    riskLevel: 2,
+    description: 'ETH vault with WELL token rewards. Earn yield on ETH holdings. ~$13.2M TVL, ~2.9% APY.',
   },
 
   'seamless-usdc': {
@@ -72,7 +132,7 @@ export const VAULT_REGISTRY: Record<string, VaultEntry> = {
     underlyingDecimals: 6,
     chainId: 8453,
     riskLevel: 2,
-    description: 'Seamless Protocol USDC vault curated by Gauntlet. ~$23M TVL.',
+    description: 'Seamless Protocol USDC vault with SEAM rewards. ~$23M TVL, ~3.1% APY.',
   },
 } as const;
 

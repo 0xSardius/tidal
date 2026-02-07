@@ -26,7 +26,7 @@ const PROTOCOL_META: Record<string, { name: string; color: string; icon: string 
 
 // Protocols we can actually execute on - always pin these in the sidebar
 const FEATURED_PROTOCOLS: Record<string, string[]> = {
-  'shallows': ['aave-v3'],
+  'shallows': ['aave-v3', 'morpho-v1'],
   'mid-depth': ['aave-v3', 'morpho-v1'],
   'deep-water': ['aave-v3', 'morpho-v1'],
 };

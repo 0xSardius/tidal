@@ -445,22 +445,22 @@ function getWelcomeMessage(riskDepth: string): string {
 I'm Tidal, your AI guide for DeFi yield. I'll keep you in safe harbors with battle-tested protocols.
 
 I can help you:
-- Earn steady yield on USDC or DAI via AAVE (~3-5% APY)
+- Earn steady yield on USDC via AAVE or Morpho vaults (~3-4% APY)
+- Choose between institutional-grade vaults (Steakhouse, Gauntlet)
 - Swap tokens via Li.Fi at the best rates
-- Track your positions and projected returns
 
 What would you like to explore?`;
   }
 
   if (riskDepth === 'mid-depth') {
-    return `Welcome to Mid-Depth - balanced currents, stronger rewards.
+    return `Welcome to Mid-Depth - stronger currents, better rewards.
 
-I'm Tidal, your AI guide for DeFi yield. At this depth, I scan across multiple protocols to find you the best risk-adjusted returns.
+I'm Tidal, your AI guide for DeFi yield. At this depth, I unlock reward-boosted vaults and higher-yield strategies.
 
 I can help you:
-- Scan yields across AAVE, Morpho, and more (~5-10% APY)
-- Earn on ETH/WETH alongside stablecoins
-- Route swaps via Li.Fi for optimal rates
+- Access reward-boosted vaults (Moonwell, Extrafi, Clearstar) for higher APY
+- Earn yield on ETH with dedicated WETH vaults
+- Compare yields across all protocols in real-time
 
 Ask me "What are the best yields right now?" to see what the currents are bringing in.`;
   }

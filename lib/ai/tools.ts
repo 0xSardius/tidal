@@ -450,7 +450,7 @@ export const scanYieldsTool = tool({
  */
 export const prepareVaultDepositTool = tool({
   description:
-    'Prepare a deposit into a curated ERC-4626 vault (Morpho, Moonwell, Seamless). Use this for Mid-Depth and Deep Water users who want higher yields than AAVE.',
+    'Prepare a deposit into a curated ERC-4626 vault (Morpho). Available at all tiers. Shallows: steakhouse-prime-usdc, gauntlet-usdc-prime. Mid-Depth adds: moonwell-flagship-usdc, steakhouse-high-yield-usdc, extrafi-xlend-usdc, clearstar-usdc-reactor, moonwell-flagship-eth, seamless-usdc.',
   inputSchema: z.object({
     vaultSlug: z
       .string()
