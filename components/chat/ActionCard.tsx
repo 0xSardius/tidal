@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAccount, usePublicClient, useSwitchChain } from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query';
 import { getWalletClient } from '@wagmi/core';
 import { parseUnits } from 'viem';
 import { base } from 'viem/chains';
@@ -111,6 +112,20 @@ export function ActionCard({
   const { address, isConnected, chain } = useAccount();
   const publicClient = usePublicClient({ chainId: base.id });
   const { switchChain } = useSwitchChain();
+  const queryClient = useQueryClient();
+
+  const invalidatePositions = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['readContract'] });
+    queryClient.invalidateQueries({ queryKey: ['readContracts'] });
+    queryClient.invalidateQueries({ queryKey: ['balance'] });
+    // Delayed second pass — some RPCs take a few seconds to index new state
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['readContract'] });
+      queryClient.invalidateQueries({ queryKey: ['readContracts'] });
+      queryClient.invalidateQueries({ queryKey: ['balance'] });
+    }, 4000);
+  }, [queryClient]);
+
   const [status, setStatus] = useState<ExecutionStatus>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [txHash, setTxHash] = useState<string>();
@@ -189,6 +204,7 @@ export function ActionCard({
         if (result.success) {
           setStatus('completed');
           setStatusMessage('Swap completed!');
+          invalidatePositions();
           onApprove?.();
           if (txHash) onSuccess?.(txHash);
         } else {
@@ -254,6 +270,7 @@ export function ActionCard({
         if (result.success) {
           setStatus('completed');
           setStatusMessage('Supply completed!');
+          invalidatePositions();
           onApprove?.();
           if (result.txHash) onSuccess?.(result.txHash);
         } else {
@@ -317,6 +334,7 @@ export function ActionCard({
         if (result.success) {
           setStatus('completed');
           setStatusMessage('Withdrawal completed!');
+          invalidatePositions();
           onApprove?.();
           if (result.txHash) onSuccess?.(result.txHash);
         } else {
@@ -422,6 +440,7 @@ export function ActionCard({
           setStatus('completed');
           setStatusMessage('Swap & Supply completed!');
           setComboStep(0);
+          invalidatePositions();
           onApprove?.();
           if (supplyResult.txHash) onSuccess?.(supplyResult.txHash);
         } else {
@@ -486,6 +505,7 @@ export function ActionCard({
         if (result.success) {
           setStatus('completed');
           setStatusMessage('Deposit completed!');
+          invalidatePositions();
           onApprove?.();
           if (result.txHash) onSuccess?.(result.txHash);
         } else {
@@ -550,6 +570,7 @@ export function ActionCard({
         if (result.success) {
           setStatus('completed');
           setStatusMessage('Withdrawal completed!');
+          invalidatePositions();
           onApprove?.();
           if (result.txHash) onSuccess?.(result.txHash);
         } else {
