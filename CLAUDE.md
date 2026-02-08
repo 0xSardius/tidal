@@ -241,6 +241,12 @@ Tidal has the foundation of a real product. The core thesis — **an AI agent th
 - Aerodrome LP vaults (Deep Water tier)
 - Pendle yield tokenization strategies
 
+### Phase 6: Infrastructure & Data Layer
+- **Shared PortfolioContext**: Lift all position data (AAVE + vault balances) into a single React context at the dashboard layout level. All child components (PoolList, PortfolioPanel, ChatPanel) consume from context instead of calling duplicate hooks. Eliminates 3x `useAavePositions()` / 2x `useVaultPositions()` duplication.
+- **RPC fallback chain**: Configure viem/wagmi with multiple transports (Alchemy primary, public RPC fallback) so if one provider goes down, the app stays up. Use viem's `fallback()` transport.
+- **WebSocket subscriptions**: Replace polling-on-mount with block event subscriptions for real-time position updates. Better UX and fewer RPC calls.
+- **Server-side position indexing**: For real scale, use an indexer (Goldsky, The Graph, or a cron job) to cache position data in a DB, so the frontend never hits RPC directly for reads.
+
 ### Grant Targets
 
 | Program | Fit | Angle |
@@ -483,6 +489,11 @@ When user is Mid-Depth:
 - [x] Retry button on failures
 - [x] Generic tool results hidden from chat (AI explains instead)
 
+**Auto-Refresh Positions** ✅
+- [x] Invalidate wagmi read queries after all 6 tx success paths in ActionCard
+- [x] Sidebar, dashboard, and wallet balances update automatically after any transaction
+- [x] Delayed second invalidation pass (4s) for slow RPC indexing
+
 ### Phase 4: Demo Polish (Days 8-9) — Feb 9-10
 
 **Day 8 (Feb 9) - Demo Script**
@@ -564,6 +575,11 @@ When user is Mid-Depth:
 - Adding a new protocol = one registry entry, zero adapter code
 - Always check `allowance` before deposit — ERC-20 approve is a separate tx
 - Use `useReadContracts` (wagmi multicall) to batch-read all vault balances efficiently
+
+**RPC & Caching**
+- Free public RPC (`mainnet.base.org`) rate-limits at ~10-15 req/sec — use Alchemy free tier instead
+- AAVE rates API route has 5-min in-memory cache (same pattern as DeFi Llama yields route)
+- Multiple components calling the same wagmi hooks = duplicate RPC calls — consolidate into shared context post-hackathon (see Phase 6)
 
 **Position Tracking**
 - Executing transactions != displaying positions — these are separate data flows
