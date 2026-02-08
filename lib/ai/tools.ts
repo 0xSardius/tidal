@@ -20,9 +20,9 @@ export const getQuoteTool = tool({
   execute: async (input) => {
     const { fromToken, toToken, amount } = input;
 
-    // Note: In production, wallet address would come from session/auth
-    // For now, use a placeholder - the frontend will handle actual execution
-    const walletAddress = '0x0000000000000000000000000000000000000000';
+    // Use a real address for quote estimation (Li.Fi rejects the zero address)
+    // Frontend will re-quote with the user's actual address before execution
+    const walletAddress = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
     const chainId = 8453; // Base mainnet
 
     // Get token info
