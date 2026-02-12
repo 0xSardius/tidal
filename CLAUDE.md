@@ -381,12 +381,12 @@ Completed a working AI-powered DeFi yield manager on Base with:
 ### Phase 0: Harden & Ship (Foundation)
 *Everything else builds on a stable base.*
 
-- [ ] Add integration tests for AI tools (getQuote, prepareSupply, prepareVaultDeposit)
-- [ ] Add tests for ActionCard execution paths (swap, aave_supply, vault_deposit, swap+supply)
-- [ ] Create shared PortfolioContext — lift position data into single React context at dashboard layout
-- [ ] Replace 4s hardcoded post-tx delay with tx receipt polling
-- [ ] Add RPC fallback transport (Alchemy primary + public fallback via viem `fallback()`)
-- [ ] Security review of ActionCard approve→execute flow (replay, front-run, stale quotes)
+- [x] Add integration tests for AI tools (getQuote, prepareSupply, prepareVaultDeposit)
+- [x] Add tests for ActionCard execution paths (swap, aave_supply, vault_deposit, swap+supply)
+- [x] Create shared PortfolioContext — lift position data into single React context at dashboard layout
+- [x] Replace 4s hardcoded post-tx delay with progressive polling (0s, 1s, 2.5s, 5s)
+- [x] Add RPC fallback transport (Alchemy primary + public fallback via viem `fallback()`)
+- [x] Security review of ActionCard approve→execute flow (added amount validation, 5-min quote expiry)
 - [ ] Environment cleanup — proper secret management, no keys in .env.local
 
 ### Phase 1: Database + User Analytics
