@@ -4,7 +4,7 @@ import { useChat, type UIMessage } from '@ai-sdk/react';
 import { useEffect, useRef, useState, useCallback, FormEvent } from 'react';
 import { useAccount } from 'wagmi';
 import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
-import { useAavePositions } from '@/lib/hooks/useAave';
+import { usePortfolio } from '@/lib/contexts/PortfolioContext';
 import { ActionCard } from './ActionCard';
 import { LifiQuoteCard } from './LifiQuoteCard';
 import { RISK_DEPTHS } from '@/lib/constants';
@@ -51,18 +51,25 @@ export function ChatPanelContent() {
   // Get context for AI
   const { address, isConnected } = useAccount();
   const { riskDepth } = useRiskDepth();
-  const { positions } = useAavePositions();
+  const { aavePositions, vaultPositions } = usePortfolio();
 
   // Build context for the AI
   const context = {
     riskDepth,
     walletConnected: isConnected,
     walletAddress: address,
-    positions: positions.map((p) => ({
-      token: p.token,
-      amount: p.suppliedFormatted,
-      protocol: 'AAVE V3',
-    })),
+    positions: [
+      ...aavePositions.map((p) => ({
+        token: p.token,
+        amount: p.suppliedFormatted,
+        protocol: 'AAVE V3',
+      })),
+      ...vaultPositions.map((p) => ({
+        token: p.token,
+        amount: p.assetsFormatted,
+        protocol: p.vaultName,
+      })),
+    ],
   };
 
   const depthConfig = RISK_DEPTHS[riskDepth ?? 'shallows'];

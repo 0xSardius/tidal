@@ -1,18 +1,13 @@
 'use client';
 
-import { useAavePositions } from '@/lib/hooks/useAave';
-import { useVaultPositions } from '@/lib/hooks/useVaultPositions';
+import { usePortfolio } from '@/lib/contexts/PortfolioContext';
 import { useAccount } from 'wagmi';
 
 export function AavePositions() {
   const { isConnected } = useAccount();
-  const { positions, totalValueUsd: aaveTotalUsd, isLoading: aaveLoading, refetch: refetchAave } = useAavePositions();
-  const { positions: vaultPositions, totalValueUsd: vaultTotalUsd, isLoading: vaultLoading, refetch: refetchVaults } = useVaultPositions();
+  const { aavePositions: positions, vaultPositions, totalValueUsd, isLoading, refetch } = usePortfolio();
 
-  const isLoading = aaveLoading || vaultLoading;
-  const totalValueUsd = aaveTotalUsd + vaultTotalUsd;
   const hasAny = positions.length > 0 || vaultPositions.length > 0;
-  const refetch = () => { refetchAave(); refetchVaults(); };
 
   if (!isConnected) {
     return (

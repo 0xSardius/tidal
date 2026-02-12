@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useAavePositions } from '@/lib/hooks/useAave';
-import { useVaultPositions } from '@/lib/hooks/useVaultPositions';
+import { usePortfolio } from '@/lib/contexts/PortfolioContext';
 import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
 import { StrategyCards } from './StrategyCards';
 
@@ -34,13 +33,10 @@ const WalletSection = dynamic(() => import('./WalletSection').then(mod => mod.Wa
 });
 
 export function PoolList() {
-  const { positions: aavePositions, totalValueUsd: aaveTotalUsd, isLoading: aaveLoading } = useAavePositions();
-  const { positions: vaultPositions, totalValueUsd: vaultTotalUsd, isLoading: vaultLoading } = useVaultPositions();
+  const { aavePositions, vaultPositions, totalValueUsd, isLoading } = usePortfolio();
   const { riskDepth, setRiskDepth, isLoaded: depthLoaded } = useRiskDepth();
   const [showDepthPicker, setShowDepthPicker] = useState(false);
 
-  const isLoading = aaveLoading || vaultLoading;
-  const totalValueUsd = aaveTotalUsd + vaultTotalUsd;
   const hasPositions = aavePositions.length > 0 || vaultPositions.length > 0;
 
   // Get display info for current risk depth

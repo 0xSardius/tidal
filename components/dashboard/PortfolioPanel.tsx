@@ -2,17 +2,12 @@
 
 import { YieldRates } from './YieldRates';
 import { AavePositions } from './AavePositions';
-import { useAavePositions } from '@/lib/hooks/useAave';
-import { useVaultPositions } from '@/lib/hooks/useVaultPositions';
+import { usePortfolio } from '@/lib/contexts/PortfolioContext';
 import { useAccount } from 'wagmi';
 
 export function PortfolioPanel() {
   const { isConnected } = useAccount();
-  const { positions: aavePositions, totalValueUsd: aaveTotalUsd, isLoading: aaveLoading } = useAavePositions();
-  const { positions: vaultPositions, totalValueUsd: vaultTotalUsd, isLoading: vaultLoading } = useVaultPositions();
-
-  const isLoading = aaveLoading || vaultLoading;
-  const totalValueUsd = aaveTotalUsd + vaultTotalUsd;
+  const { aavePositions, vaultPositions, totalValueUsd, isLoading } = usePortfolio();
 
   // Build combined positions for stats
   const allPositions = [
