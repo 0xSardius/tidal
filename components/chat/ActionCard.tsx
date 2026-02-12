@@ -79,6 +79,9 @@ interface ActionCardProps {
 type ExecutionStatus = 'idle' | 'quoting' | 'pending' | 'executing' | 'completed' | 'failed';
 type ComboStep = 0 | 1 | 2; // 0 = not started, 1 = swapping, 2 = supplying
 
+// Max age for an ActionCard before requiring a fresh quote (5 minutes)
+const MAX_CARD_AGE_MS = 5 * 60 * 1000;
+
 export function ActionCard({
   action,
   protocol,
@@ -115,15 +118,17 @@ export function ActionCard({
   const queryClient = useQueryClient();
 
   const invalidatePositions = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['readContract'] });
-    queryClient.invalidateQueries({ queryKey: ['readContracts'] });
-    queryClient.invalidateQueries({ queryKey: ['balance'] });
-    // Delayed second pass — some RPCs take a few seconds to index new state
-    setTimeout(() => {
+    const invalidate = () => {
       queryClient.invalidateQueries({ queryKey: ['readContract'] });
       queryClient.invalidateQueries({ queryKey: ['readContracts'] });
       queryClient.invalidateQueries({ queryKey: ['balance'] });
-    }, 4000);
+    };
+    // Progressive polling: immediate, then 1s, 2.5s, 5s
+    // Picks up changes faster on responsive RPCs, still catches slow indexers
+    invalidate();
+    setTimeout(invalidate, 1000);
+    setTimeout(invalidate, 2500);
+    setTimeout(invalidate, 5000);
   }, [queryClient]);
 
   const [status, setStatus] = useState<ExecutionStatus>('idle');
@@ -131,14 +136,30 @@ export function ActionCard({
   const [txHash, setTxHash] = useState<string>();
   const [error, setError] = useState<string>();
   const [comboStep, setComboStep] = useState<ComboStep>(0);
+  const [createdAt] = useState(() => Date.now());
 
   const isWrongChain = chain?.id !== base.id;
+  const isStale = Date.now() - createdAt > MAX_CARD_AGE_MS;
 
   const handleApprove = async () => {
     if (!isConnected || !address) {
       setError('Please connect your wallet first');
       setStatus('failed');
       onError?.('Wallet not connected');
+      return;
+    }
+
+    // Validate amount is positive and numeric
+    if (amount && (isNaN(Number(amount)) || Number(amount) <= 0)) {
+      setError('Invalid amount. Please request a new action.');
+      setStatus('failed');
+      return;
+    }
+
+    // Warn if card data is stale
+    if (isStale) {
+      setError('This quote has expired. Please request a fresh one from Tidal.');
+      setStatus('failed');
       return;
     }
 
@@ -870,8 +891,12 @@ export function ActionCard({
           </button>
           <button
             onClick={handleApprove}
-            disabled={isProcessing || !isConnected}
-            className="flex-1 px-4 py-2 text-sm rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isProcessing || !isConnected || isStale}
+            className={`flex-1 px-4 py-2 text-sm rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              isStale
+                ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
+                : 'bg-cyan-500 hover:bg-cyan-400 text-white'
+            }`}
           >
             {isProcessing ? (
               <span className="flex items-center justify-center gap-2">
@@ -884,6 +909,8 @@ export function ActionCard({
               </span>
             ) : !isConnected ? (
               'Connect Wallet'
+            ) : isStale ? (
+              'Quote Expired'
             ) : isWrongChain ? (
               'Switch to Base'
             ) : (
