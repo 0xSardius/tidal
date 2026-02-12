@@ -24,7 +24,32 @@
       "WebFetch(domain:docs.li.fi)",
       "WebFetch(domain:docs.privy.io)",
       "Bash(git pull:*)",
-      "WebFetch(domain:ai-sdk.dev)"
+      "WebFetch(domain:ai-sdk.dev)",
+      "Bash(ping:*)",
+      "WebFetch(domain:defillama.com)",
+      "WebFetch(domain:yields.llama.fi)",
+      "WebFetch(domain:docs.moonwell.fi)",
+      "WebFetch(domain:docs.morpho.org)",
+      "WebFetch(domain:api-docs.defillama.com)",
+      "Bash(python3:*)",
+      "Bash(node -e:*)",
+      "Bash(node:*)",
+      "Bash(del:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(python:*)",
+      "WebFetch(domain:app.morpho.org)",
+      "WebFetch(domain:basescan.org)",
+      "WebFetch(domain:morpho.org)",
+      "WebFetch(domain:www.steakhouse.financial)",
+      "WebFetch(domain:www.coinbase.com)",
+      "WebFetch(domain:kitchen.steakhouse.financial)",
+      "WebFetch(domain:www.coingecko.com)",
+      "WebFetch(domain:app.vaults.fyi)",
+      "WebFetch(domain:www.yo.xyz)",
+      "WebFetch(domain:docs.yo.xyz)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.compound.finance)",
+      "Bash(powershell -Command:*)"
     ]
   }
 }

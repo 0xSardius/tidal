@@ -361,200 +361,159 @@ When user is Mid-Depth:
 
 ---
 
-## Scratchpad
+## Post-Hackathon Product Roadmap
 
 ### Current Phase
-**Phase 5: Final Sprint** (Feb 2-11, 2026)
+**Phase 0: Harden & Ship** (Feb 2026)
 
-### Completed
-
-**Foundation & Auth**
-- [x] Next.js 16 + React 19 + Tailwind v4
-- [x] 3-panel layout (sidebar, chat, dashboard)
-- [x] Dark ocean theme with bioluminescent accents
-- [x] Landing page → Onboard → Dashboard flow
-- [x] Privy + Coinbase Smart Wallet integration
-- [x] Risk depth selection (Shallows/Mid-Depth/Deep Water)
-
-**Li.Fi Integration**
-- [x] Li.Fi SDK wrapper (lib/lifi.ts)
-- [x] Li.Fi API routes (/api/lifi/quote, /api/lifi/routes)
-- [x] useLifiSwap hook
-- [x] RouteDisplay and SwapPreview components
-- [x] getQuote tool calls real Li.Fi API
-
-**AAVE Integration**
-- [x] AAVE V3 ABIs and helpers (lib/aave.ts)
-- [x] useAave hooks (currently mock data)
-- [x] Dashboard components (AavePositions, YieldRates)
-
-**DeFi Llama Yield Scanner (Mid-Depth)**
-- [x] /api/yields route - DeFi Llama fetch, Base filter, 5-min cache, risk assessment
-- [x] scanYields AI tool - compares yields across protocols per tier
-- [x] Tier-specific AI prompt (Shallows=AAVE only, Mid-Depth=multi-protocol scan)
-- [x] Tier-specific welcome messages with ocean metaphors (client + server)
-- [x] Verified: Shallows returns AAVE only (3.91%), Mid-Depth unlocks Morpho + others (up to 20% APY)
-- [x] Sidebar StrategyCards component with live DeFi Llama APYs, protocol icons, "Best Rate" badge
-- [x] Click-to-chat: strategy cards dispatch messages to AI via custom event
-- [x] Risk assessment fix: AAVE = level 1 (Shallows), Morpho + others = level 2 (Mid-Depth)
-- [x] Tier switcher dropdown in sidebar (click "Your Depth" card to switch tiers)
-- [x] Shallows unlock hint ("Unlock more strategies at Mid-Depth")
-
-**AI Chat**
-- [x] AI tools: getQuote, getAaveRates, scanYields, prepareSupply, prepareWithdraw, prepareSwapAndSupply
-- [x] Chat API with streaming (/api/chat)
-- [x] AI SDK v6.0.65 integration (toUIMessageStreamResponse)
-- [x] ChatPanel with message parts handling
-- [x] ActionCard for tool approval UI
-- [x] Fixed hydration errors (dynamic imports with ssr:false)
-- [x] Fixed scroll behavior
-- [x] **CRITICAL FIX**: `await convertToModelMessages()` in chat API (async function!)
-- [x] **FIX**: Privy/wagmi integration - must use `@privy-io/wagmi` exports for createConfig and WagmiProvider
+### Hackathon Recap (ETH Global HackMoney 2026)
+Completed a working AI-powered DeFi yield manager on Base with:
+- AI agent (Claude + Vercel AI SDK v6) with 7 tools for swaps, lending, vault deposits
+- Risk-tiered UX (Shallows/Mid-Depth/Deep Water)
+- Li.Fi as universal swap/routing layer
+- AAVE V3 lending integration
+- Generic ERC-4626 vault adapter (Morpho, YO Protocol — 10 curated vaults)
+- DeFi Llama yield scanning across all Base protocols
+- Deployed on Vercel, live on Base Mainnet
 
 ---
 
-## 🚀 FINAL SPRINT PLAN (Feb 2-11)
+### Phase 0: Harden & Ship (Foundation)
+*Everything else builds on a stable base.*
 
-### Phase 1: Core Execution (Days 1-3) — Feb 2-4
+- [ ] Add integration tests for AI tools (getQuote, prepareSupply, prepareVaultDeposit)
+- [ ] Add tests for ActionCard execution paths (swap, aave_supply, vault_deposit, swap+supply)
+- [ ] Create shared PortfolioContext — lift position data into single React context at dashboard layout
+- [ ] Replace 4s hardcoded post-tx delay with tx receipt polling
+- [ ] Add RPC fallback transport (Alchemy primary + public fallback via viem `fallback()`)
+- [ ] Security review of ActionCard approve→execute flow (replay, front-run, stale quotes)
+- [ ] Environment cleanup — proper secret management, no keys in .env.local
 
-**Day 1 (Feb 2) - Li.Fi Transaction Execution** ✅
-- [x] Wire ActionCard "Approve" to wagmi sendTransaction
-- [x] Build transaction from Li.Fi quote data
-- [x] Add pending/success/error states to ActionCard
-- [ ] **TEST:** Execute $1 USDC→ETH swap on Base mainnet
+### Phase 1: Database + User Analytics
+*Can't improve what you can't measure. Grants ask for traction numbers.*
 
-**Day 2 (Feb 3) - AAVE Real Data** ✅
-- [x] Fix AAVE contract addresses for Base mainnet
-- [x] Wire /api/aave/rates to read real APYs from contracts
-- [x] AI tools fetch live rates from API
-- [ ] **TEST:** See real AAVE rates in dashboard
+- [ ] Add Postgres (Vercel Postgres or Supabase — free tier, managed)
+- [ ] Schema: `users` (wallet, risk_depth, created_at)
+- [ ] Schema: `transactions` (type, protocol, amount, tx_hash, chain, timestamp)
+- [ ] Schema: `sessions` (chat_id, messages_count, tools_used)
+- [ ] Schema: `yield_actions` (what AI recommended vs. what user did)
+- [ ] Transaction history page — users see past actions, earnings, protocol
+- [ ] Funnel analytics: landing → onboard → first chat → first tx → repeat tx
+- [ ] Basic analytics integration (PostHog or Plausible)
 
-**Day 3 (Feb 4) - AAVE Supply/Withdraw** ✅
-- [x] Wire prepareSupply tool to return real tx data
-- [x] ActionCard executes AAVE supply via wagmi
-- [x] Handle token approval flow (ERC20 approve)
-- [ ] **TEST:** Supply $5 USDC to AAVE, verify position appears
+### Phase 2: Yield Scanner Expansion + Deep Water Strategies
+*More protocols, riskier strategies, fuller product.*
 
-### Phase 2: Li.Fi Polish (Days 4-5) — Feb 5-6
+**Yield Scanner:**
+- [ ] Expand DeFi Llama filtering to index Arbitrum, Optimism, Polygon, Ethereum mainnet
+- [ ] Add protocol metadata: audit status, vault age, TVL trend, smart contract risk score
+- [ ] Surface reward token APY separately from base APY
+- [ ] Protocol-specific on-chain APY reads for accuracy (supplement DeFi Llama)
 
-**Day 4 (Feb 5) - Li.Fi Branding** ✅
-- [x] Add "Powered by Li.Fi" badge to quote cards
-- [x] New LifiQuoteCard component with animated route, DEX badge, stats
-- [x] Show LifiQuoteCard in chat for every swap quote
-- [x] Display DEX/aggregator used in route
-- [x] Li.Fi pill badge on ActionCard swap header
-- [x] Route visualization with animated dotted path in ActionCard
-- [x] AAVE rates card polished with Li.Fi cross-sell footer
-- [x] AI prompt updated to always mention Li.Fi when routing
-- [ ] **TEST:** Screenshot-ready UI with Li.Fi attribution
+**Deep Water High-Risk Strategies:**
+- [ ] Leveraged lending (Morpho loop: supply USDC → borrow ETH → supply ETH, 15-30% APY)
+- [ ] LP positions (Aerodrome USDC/ETH concentrated liquidity, 20-80% APY)
+- [ ] Yield farming (Aerodrome emissions + swap fees, 30-100%+ APY)
+- [ ] Pendle yield tokenization (PT/YT strategies on Base)
+- [ ] Recursive strategies (deposit → borrow → redeposit loops, 15-40% APY)
+- [ ] AI explains risk in plain English before every Deep Water action
 
-**Day 5 (Feb 6) - Mid-Depth: DeFi Llama + AI Yield Scanner** ✅
-- [x] Create `/api/yields/route.ts` - fetch DeFi Llama, filter Base, cache 5 min
-- [x] Create `scanYields` AI tool - queries API, returns sorted opportunities by risk tier
-- [x] Update AI prompt with tier-specific behavior (Shallows=AAVE only, Mid-Depth=compare protocols)
-- [x] Update welcome messages per tier (client + server)
-- [x] Sidebar StrategyCards with live APYs, protocol pinning, Supported badges
-- [x] Tier switcher dropdown in sidebar
-- [x] Risk assessment: AAVE=Shallows only, Morpho+=Mid-Depth
-- [ ] **TEST:** Switch to Mid-Depth, see multi-protocol yield comparison
+### Phase 3: True Cross-Chain Yield
+*Li.Fi goes from swap layer to bridge layer.*
 
-**Day 6 (Feb 7) - Generic ERC-4626 Vault Adapter** ✅
-- [x] Create `lib/vault-registry.ts` - 10 curated vaults (2 Shallows, 8 Mid-Depth)
-- [x] Create `lib/vaults.ts` - generic ERC-4626 deposit/withdraw/position helpers
-- [x] Create `prepareVaultDeposit` / `prepareVaultWithdraw` AI tools (generic)
-- [x] Add `vault_deposit` / `vault_withdraw` branches to ActionCard
-- [x] Restructured tiers: conservative Morpho → Shallows, reward-boosted → Mid-Depth
-- [x] Successfully deposited into Morpho vault via chat
-- [x] **TEST:** Deposit USDC to Morpho vault via chat ✅
+- [ ] Remove `chain === "Base"` filter in DeFi Llama scanner — rank across all chains
+- [ ] Break-even calculator: `bridge_cost / (target_apy - current_apy) * principal = days`
+- [ ] Li.Fi bridge execution (cross-chain getQuote with `fromChainId !== toChainId`)
+- [ ] Cross-chain position tracking via cron job + DB (Phase 1 dependency)
+- [ ] Priority chains: Arbitrum (deep AAVE), Optimism (Sonne/Exactly), Polygon (high AAVE rates)
+- [ ] Portfolio view across all chains
 
-**Day 7 (Feb 8) - YO Protocol + Sidebar Polish** ✅
-- [x] Discovered YO Protocol (Coinbase Ventures, ERC-4626, 8.6% USDC APY)
-- [x] Added YO vaults to registry — zero new adapter code needed
-- [x] "Scouted by Tidal" discovery section for DeFi Llama high-yield protocols
-- [x] Tier-exclusive sidebar (Shallows ≠ Mid-Depth, no repeats)
-- [x] APY estimates on all sidebar cards
-- [x] Fixed sidebar scroll overflow
-- [x] Fixed scouted pools disappearing on tier switch (double-render guard)
-- [x] **TEST:** Switch to Mid-Depth, see YO at 8.6% + scouted protocols ✅
+### Phase 4: Points System
+*Gamification drives retention, creates token-launch optionality.*
 
-### Previously Completed (done early)
+- [ ] Points per transaction: `base_points * risk_multiplier * amount_tier`
+  - Shallows deposit: 10 pts, Mid-Depth: 25 pts, Deep Water: 50 pts, Cross-chain: 100 pts
+- [ ] Streak bonus: consecutive weekly activity multiplier
+- [ ] Points ledger DB table (Phase 1 dependency): event type, amount, timestamp, wallet
+- [ ] Points display in dashboard UI
+- [ ] Optional leaderboard (wallet-based, pseudonymous)
 
-**Swap+Supply Combo** ✅
-- [x] prepareSwapAndSupply returns real Li.Fi quote + live AAVE APY
-- [x] ActionCard executes 2-step flow: Li.Fi swap → AAVE supply
-- [x] Step progress indicators with active/completed states
+### Phase 5: Lucid Agents + x402 (Agent-to-Agent Yield)
+*Make Tidal's yield intelligence available to other AI agents as a paid API.*
 
-**Error Handling** ✅
-- [x] Friendly error messages (insufficient balance, rejected tx, slippage, network)
-- [x] Retry button on failures
-- [x] Generic tool results hidden from chat (AI explains instead)
+**Concept**: Other AI agents (shopping, treasury, DAO agents) hold idle funds.
+They pay Tidal's agent via x402 to find and execute yield strategies.
 
-**Auto-Refresh Positions** ✅
-- [x] Invalidate wagmi read queries after all 6 tx success paths in ActionCard
-- [x] Sidebar, dashboard, and wallet balances update automatically after any transaction
-- [x] Delayed second invalidation pass (4s) for slow RPC indexing
-
-### Phase 4: Demo Polish (Days 8-9) — Feb 9-10
-
-**Day 8 (Feb 9) - Demo Script**
-- [ ] Write exact 3-minute demo script (show BOTH tiers!)
-- [ ] Pre-fund wallet with demo amounts
-- [ ] Test full flow 3 times
-- [ ] **TEST:** Record practice run
-
-**Day 9 (Feb 10) - Final Polish**
-- [ ] Landing page polish for demo
-- [ ] UI tweaks and animations
-- [ ] Loading state improvements
-- [ ] Copy refinement (ocean metaphors)
-- [ ] **TEST:** Full demo with teammate
-
-### Day 10 (Feb 11) - DEADLINE
-- [ ] Morning: Final test on fresh browser
-- [ ] Submit project
-- [ ] Record backup demo video
-
----
-
-## 🎬 Demo Golden Path (3 minutes)
-
+**Architecture:**
 ```
-[0:00] Landing "/" → Click "Dive In" → Privy login
-[0:15] Onboard → Select "Shallows" → Dashboard loads
-[0:25] Chat: "What can I earn on my USDC?"
-[0:35] AI shows AAVE at 3.9% → "Calm waters, steady returns"
-[0:50] Chat: "Supply 20 USDC to AAVE"
-[1:00] ActionCard → Approve → Transaction executes
-[1:15] Position appears in dashboard. "Now let me show you Mid-Depth..."
-[1:20] Switch to Mid-Depth tier (settings or onboard again)
-[1:30] Chat: "What are the best USDC yields right now?"
-[1:40] AI scans DeFi Llama → "I found Morpho at 7.8% vs AAVE at 3.9%"
-[1:55] Chat: "Move my USDC to the higher yield"
-[2:05] AI: "Routing via Li.Fi + depositing to Morpho vault" → ActionCard
-[2:15] Approve → Transaction executes → Morpho position in dashboard
-[2:30] Recap: "Two tiers, AI finds best yield, Li.Fi routes, one click"
-[2:45] Wrap: "Tidal - AI-powered DeFi for everyone"
+External AI Agent
+    │ HTTP request + x402 payment header (USDC)
+    ▼
+Tidal x402 API (Next.js + lucid-agents middleware)
+    ├── GET  /api/agent/yields    → scan yields ($0.01/call)
+    ├── POST /api/agent/recommend → AI recommendation ($0.05/call)
+    └── POST /api/agent/execute   → prepare tx data ($0.10/call)
+    ▼
+Returns signed transaction data or yield recommendations
 ```
 
+- [ ] Integrate lucid-agents SDK (Next.js adapter — drops into existing app)
+- [ ] x402 paywall middleware on agent API routes
+- [ ] ERC-8004 for on-chain agent identity
+- [ ] `/api/agent/yields` — yield scanning endpoint (paginated, filterable)
+- [ ] `/api/agent/recommend` — AI-powered recommendation with risk assessment
+- [ ] `/api/agent/execute` — transaction preparation for external agents
+- [ ] USDC on Base as payment token (native chain alignment)
+- [ ] Usage tracking + revenue dashboard
+
+**Reference**: https://github.com/daydreamsai/lucid-agents
+
+### Phase 6: Auto-Rebalancing Agent
+*The feature that makes Tidal truly autonomous.*
+
+- [ ] Scheduled yield scans (Vercel Cron or dedicated worker)
+- [ ] Alert when APY delta > configurable threshold
+- [ ] Notification delivery (Telegram bot, email, or in-app)
+- [ ] One-click approval → agent executes rebalance
+- [ ] Cross-chain rebalancing (Phase 3 dependency)
+
 ---
 
-## Li.Fi Prize Requirements
+### Phase Dependency Graph
 
-| Requirement | Status | Action |
-|-------------|--------|--------|
-| Real Li.Fi transactions | ✅ ActionCard executes swaps | Needs mainnet test |
-| Li.Fi attribution visible | ✅ LifiQuoteCard, ActionCard badges, AAVE cross-sell | Done |
-| Route visualization | ✅ Animated route paths, DEX badges, stats | Done |
-| Novel use case | ✅ AI-first DeFi | - |
+```
+Phase 0 (Harden)
+    │
+    ▼
+Phase 1 (Database) ──────────────────┐
+    │                                 │
+    ├──► Phase 2 (Yield Scanner)      │
+    │        │                        │
+    │        ▼                        ▼
+    ├──► Phase 3 (Cross-Chain)   Phase 4 (Points)
+    │        │
+    │        ▼
+    ├──► Phase 5 (x402 Agent API)
+    │
+    └──► Phase 6 (Auto-Rebalance)
+```
 
----
+### Grant Targets
 
-### Blockers
-(none)
+| Program | Fit | Angle |
+|---------|-----|-------|
+| **Li.Fi Ecosystem Grants** | Strong | Cross-chain routing as invisible yield layer |
+| **Base Builder Grants** | Strong | Onboarding mainstream users to Base DeFi via AI |
+| **Morpho Grants** | Good | Driving deposits into Morpho vaults via AI recommendations |
+| **Coinbase Developer Grants** | Good | x402 + Smart Wallet + Base full stack |
+| **Cloudflare x402 Foundation** | Good | x402 agent API demonstrates the payment standard |
+| **Optimism RPGF** | Future | Cross-chain yield benefits the Superchain ecosystem |
 
-### Notes
-- **NOW ON BASE MAINNET** - Budget: $20-50 USDC for testing
-- Deadline: Feb 11, 2026
+### Competitive Positioning
+- **vs Yearn/Beefy**: Those are vaults. Tidal is the *advisor* layer routing users to the right vault.
+- **vs Zapper/DeBank**: They show data. Tidal *acts* on it.
+- **vs TradFi robo-advisors**: Tidal brings that UX to DeFi with on-chain execution.
+- **Moat**: AI personalization (risk tiers) + universal vault adapter + Li.Fi routing + x402 agent API
 
 ### Lessons Learned (Battle-Tested)
 
