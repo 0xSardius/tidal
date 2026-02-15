@@ -418,7 +418,7 @@ Completed a working AI-powered DeFi yield manager on Base with:
 - [ ] Recursive strategies (deposit → borrow → redeposit loops, 15-40% APY)
 - [ ] AI explains risk in plain English before every Deep Water action
 
-### Phase 3: True Cross-Chain Yield
+### Phase 3: True Cross-Chain Yield (EVM)
 *Li.Fi goes from swap layer to bridge layer.*
 
 - [ ] Remove `chain === "Base"` filter in DeFi Llama scanner — rank across all chains
@@ -427,6 +427,81 @@ Completed a working AI-powered DeFi yield manager on Base with:
 - [ ] Cross-chain position tracking via cron job + DB (Phase 1 dependency)
 - [ ] Priority chains: Arbitrum (deep AAVE), Optimism (Sonne/Exactly), Polygon (high AAVE rates)
 - [ ] Portfolio view across all chains
+
+### Phase 3.5: Solana Expansion
+*Extend Tidal from EVM-only to EVM + Solana via Li.Fi's native Solana support.*
+
+**Why Solana:**
+- Li.Fi already supports Solana (bridges via Mayan Swift/CCTP/WH + AllBridge, swaps via Jupiter)
+- DeFi Llama yields API already covers Solana (`chain === "Solana"`)
+- Privy supports embedded Solana wallets alongside EVM
+- Major yield opportunities: Kamino Lend (1-8%), Jito (7-9% SOL), Marinade (6-8%)
+
+**Li.Fi Solana Details:**
+- Solana chain ID: `1151111081099710`
+- Native SOL: `11111111111111111111111111111111` (System Program)
+- Wrapped SOL: `So11111111111111111111111111111111111111112`
+- Supported bridges: Mayan (Swift, CCTP, WH), AllBridge
+- On-chain DEX: Jupiter (only Jupiter-verified tokens)
+- Current limitation: single-step per ecosystem (bridge OR swap, not combined yet)
+
+**Solana Protocol Equivalents:**
+
+| EVM Protocol | Solana Equivalent | Typical APY | Notes |
+|-------------|-------------------|-------------|-------|
+| AAVE V3 | Kamino Lend | 1-8% USDC | $2.4B+ TVL, largest Solana lending |
+| ERC-4626 Vaults | Marinade / Jito | 6-11% SOL | Liquid staking, no vault standard |
+| Li.Fi Swaps | Jupiter (via Li.Fi) | — | Best-in-class Solana aggregator |
+| Morpho Vaults | Drift / Marginfi | 3-15% | Points-boosted lending |
+
+**EVM vs Solana Architecture Differences:**
+- Addresses: `0x...` hex → base58 public keys
+- Contracts: Solidity ABI → Anchor IDL
+- Tokens: ERC-20 (approve + transfer) → SPL Token (no approve pattern)
+- Vaults: ERC-4626 standard → no equivalent, each protocol has its own interface
+- Accounts: single address → keypair + PDA (Program Derived Address) + ATA (Associated Token Account)
+
+**Implementation (3 sub-phases):**
+
+*3.5a: Chain Abstraction Foundation (2-3 weeks)*
+- [ ] Design `IProtocol`, `IChain` abstract interfaces
+- [ ] Refactor EVM code behind chain abstraction (`lib/chains/evm/`)
+- [ ] Create `useMultiChain` hook wrapping EVM + Solana wallet state
+- [ ] Keep all existing EVM functionality working
+
+*3.5b: Solana Pilot (4-6 weeks)*
+- [ ] Add `Solana()` provider to Li.Fi SDK config alongside `EVM()`
+- [ ] Configure Privy embedded Solana wallet
+- [ ] Implement Kamino Lend adapter (`lib/chains/solana/kamino.ts`)
+- [ ] Add Jupiter swap integration via Li.Fi
+- [ ] Single protocol, single token (USDC on Solana)
+- [ ] Add `chain === "Solana"` filter to DeFi Llama yields route
+
+*3.5c: Solana Expansion (2-3 weeks)*
+- [ ] Add Marinade liquid staking adapter
+- [ ] Expand tokens (SOL, USDT)
+- [ ] Chain switcher in UI
+- [ ] Cross-chain yield comparison: "5.1% on Solana Kamino vs 3.9% on Base AAVE"
+- [ ] Li.Fi bridge execution: Base USDC → Solana USDC via Mayan
+
+**Target Architecture:**
+```
+lib/chains/
+├── evm/
+│   ├── aave.ts           # Current AAVE V3
+│   ├── vaults.ts         # Current ERC-4626
+│   └── lifi.ts           # Current Li.Fi (EVM provider)
+├── solana/
+│   ├── kamino.ts         # Kamino Lend
+│   ├── marinade.ts       # Marinade liquid staking
+│   └── jupiter.ts        # Jupiter swaps (via Li.Fi)
+└── protocols.ts          # IProtocol interface
+```
+
+**Grant Opportunities:**
+- Solana Foundation grants (AI + DeFi on Solana)
+- Marinade grants (driving mSOL deposits)
+- Kamino grants (lending integration)
 
 ### Phase 4: Points System
 *Gamification drives retention, creates token-launch optionality.*
@@ -490,7 +565,10 @@ Phase 1 (Database) ──────────────────┐
     ├──► Phase 2 (Yield Scanner)      │
     │        │                        │
     │        ▼                        ▼
-    ├──► Phase 3 (Cross-Chain)   Phase 4 (Points)
+    ├──► Phase 3 (Cross-Chain EVM)  Phase 4 (Points)
+    │        │
+    │        ▼
+    ├──► Phase 3.5 (Solana Expansion)
     │        │
     │        ▼
     ├──► Phase 5 (x402 Agent API)
@@ -507,6 +585,7 @@ Phase 1 (Database) ──────────────────┐
 | **Morpho Grants** | Good | Driving deposits into Morpho vaults via AI recommendations |
 | **Coinbase Developer Grants** | Good | x402 + Smart Wallet + Base full stack |
 | **Cloudflare x402 Foundation** | Good | x402 agent API demonstrates the payment standard |
+| **Solana Foundation** | Good | AI-first DeFi on Solana via Kamino + Jupiter |
 | **Optimism RPGF** | Future | Cross-chain yield benefits the Superchain ecosystem |
 
 ### Competitive Positioning
