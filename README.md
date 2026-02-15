@@ -79,4 +79,4 @@ ETH Global HackMoney 2026
 
 ## Team
 
-Built by [@0xSardius](https://github.com/0xSardius)
+Built by [@0xSardius](https://github.com/0xSardius) & [@0xJulo](https://github.com/0xJulo)
