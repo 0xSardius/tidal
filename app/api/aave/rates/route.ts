@@ -10,7 +10,7 @@ import {
 
 const client = createPublicClient({
   chain: base,
-  transport: http(process.env.NEXT_PUBLIC_BASE_MAINNET_RPC || 'https://mainnet.base.org'),
+  transport: http(process.env.BASE_MAINNET_RPC || 'https://mainnet.base.org'),
 });
 
 const TOKENS: AaveToken[] = ['USDC', 'WETH'];
