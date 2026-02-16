@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { usePortfolio } from '@/lib/contexts/PortfolioContext';
 import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
 import { StrategyCards } from './StrategyCards';
@@ -247,6 +248,19 @@ export function PoolList() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Transaction Log Link */}
+      <div className="px-3 pb-2">
+        <Link
+          href="/history"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors text-sm"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Transaction Log
+        </Link>
       </div>
 
       {/* User Section - dynamically loaded to avoid hydration issues */}

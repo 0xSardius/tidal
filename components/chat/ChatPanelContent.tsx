@@ -276,16 +276,95 @@ export function ChatPanelContent() {
                           risks={result.risks as string[] | undefined}
                           note={result.note as string | null | undefined}
                           onApprove={() => {
-                            console.log('Approved:', result);
+                            // No DB write needed — success/error handlers cover it
                           }}
                           onReject={() => {
-                            console.log('Rejected:', result);
+                            if (address) {
+                              fetch('/api/yield-actions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  wallet: address,
+                                  recommendedProtocol: (result.protocol as string) || (result.vaultName as string) || null,
+                                  recommendedApy: result.estimatedApy ? String(result.estimatedApy) : null,
+                                  recommendedToken: (result.token as string) || null,
+                                  userAction: 'rejected',
+                                }),
+                              }).catch(console.error);
+                            }
                           }}
                           onSuccess={(txHash) => {
-                            console.log('Transaction success:', txHash);
+                            if (address) {
+                              // Map action to transaction type
+                              const actionMap: Record<string, string> = {
+                                supply: 'supply', withdraw: 'withdraw', swap: 'swap',
+                                swap_and_supply: 'swap_and_supply',
+                                vault_deposit: 'vault_deposit', vault_withdraw: 'vault_withdraw',
+                              };
+                              const txType = actionMap[result.action as string] || 'swap';
+
+                              fetch('/api/transactions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  wallet: address,
+                                  type: txType,
+                                  protocol: (result.protocol as string) || (result.vaultName as string) || null,
+                                  token: (result.token as string) || (result.fromToken as string) || null,
+                                  amount: (result.amount as string) || null,
+                                  txHash,
+                                  status: 'success',
+                                  metadata: {
+                                    estimatedApy: result.estimatedApy,
+                                    vaultSlug: result.vaultSlug,
+                                  },
+                                }),
+                              })
+                                .then((res) => res.json())
+                                .then((data) => {
+                                  // Also log the yield action as approved
+                                  if (data?.id) {
+                                    fetch('/api/yield-actions', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        wallet: address,
+                                        recommendedProtocol: (result.protocol as string) || (result.vaultName as string) || null,
+                                        recommendedApy: result.estimatedApy ? String(result.estimatedApy) : null,
+                                        recommendedToken: (result.token as string) || null,
+                                        userAction: 'approved',
+                                        actualProtocol: (result.protocol as string) || (result.vaultName as string) || null,
+                                        txId: data.id,
+                                      }),
+                                    }).catch(console.error);
+                                  }
+                                })
+                                .catch(console.error);
+                            }
                           }}
                           onError={(error) => {
-                            console.error('Transaction error:', error);
+                            if (address) {
+                              const actionMap: Record<string, string> = {
+                                supply: 'supply', withdraw: 'withdraw', swap: 'swap',
+                                swap_and_supply: 'swap_and_supply',
+                                vault_deposit: 'vault_deposit', vault_withdraw: 'vault_withdraw',
+                              };
+                              const txType = actionMap[result.action as string] || 'swap';
+
+                              fetch('/api/transactions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  wallet: address,
+                                  type: txType,
+                                  protocol: (result.protocol as string) || (result.vaultName as string) || null,
+                                  token: (result.token as string) || (result.fromToken as string) || null,
+                                  amount: (result.amount as string) || null,
+                                  status: 'failed',
+                                  errorMessage: typeof error === 'string' ? error : (error as Error)?.message || 'Unknown error',
+                                }),
+                              }).catch(console.error);
+                            }
                           }}
                         />
                       );

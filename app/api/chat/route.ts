@@ -3,6 +3,9 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { tidalTools } from '@/lib/ai/tools';
 import { buildSystemPrompt } from '@/lib/ai/prompts';
 import { type RiskDepth } from '@/lib/constants';
+import { db } from '@/lib/db';
+import { sessions } from '@/lib/db/schema';
+import { eq, sql } from 'drizzle-orm';
 
 export const maxDuration = 30;
 
@@ -36,6 +39,50 @@ export async function POST(req: Request) {
     const walletInfo = context?.walletAddress
       ? `\n\nUser wallet: ${context.walletAddress}\nChain: Base (chainId: 8453)`
       : '\n\nUser wallet: Not connected';
+
+    // Track session in DB (fire-and-forget)
+    const sessionId = data?.sessionId;
+    if (db && sessionId) {
+      const toolNames = (messages ?? [])
+        .flatMap((m: Record<string, unknown>) => {
+          const parts = m.parts as Array<{ type: string; toolName?: string }> | undefined;
+          return (parts ?? [])
+            .filter((p) => p.type?.startsWith('tool-') || p.type === 'dynamic-tool')
+            .map((p) => p.toolName)
+            .filter(Boolean);
+        }) as string[];
+
+      const wallet = context?.walletAddress?.toLowerCase();
+
+      // Upsert session
+      db.select()
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .limit(1)
+        .then((existing) => {
+          if (existing.length > 0) {
+            const currentTools = (existing[0].toolsUsed ?? []) as string[];
+            const mergedTools = [...new Set([...currentTools, ...toolNames])];
+            return db!
+              .update(sessions)
+              .set({
+                messageCount: sql`${sessions.messageCount} + 1`,
+                toolsUsed: mergedTools,
+                wallet: wallet ?? existing[0].wallet,
+                updatedAt: new Date(),
+              })
+              .where(eq(sessions.id, sessionId));
+          } else {
+            return db!.insert(sessions).values({
+              id: sessionId,
+              wallet: wallet ?? null,
+              messageCount: 1,
+              toolsUsed: toolNames,
+            });
+          }
+        })
+        .catch((err) => console.error('Session tracking error:', err));
+    }
 
     // Convert UI messages to model messages (async function!)
     const modelMessages = await convertToModelMessages(messages);

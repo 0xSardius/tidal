@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAccount } from 'wagmi';
 import { RISK_DEPTHS, type RiskDepth } from '@/lib/constants';
 
 const depthDetails: Record<RiskDepth, {
@@ -28,6 +29,7 @@ const depthDetails: Record<RiskDepth, {
 
 export default function OnboardPage() {
   const router = useRouter();
+  const { address } = useAccount();
   const [selectedDepth, setSelectedDepth] = useState<RiskDepth | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,8 +38,17 @@ export default function OnboardPage() {
 
     setIsSubmitting(true);
 
-    // Store preference (localStorage for now, could be database later)
+    // Store preference locally
     localStorage.setItem('tidal-risk-depth', selectedDepth);
+
+    // Persist to database (fire-and-forget)
+    if (address) {
+      fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: address, riskDepth: selectedDepth }),
+      }).catch(console.error);
+    }
 
     // Navigate to dashboard
     router.push('/dashboard');
