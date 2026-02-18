@@ -60,3 +60,23 @@ export const RISK_DEPTHS = {
 } as const;
 
 export type RiskDepth = keyof typeof RISK_DEPTHS;
+
+// Chains supported for yield scanning (separate from execution-only SUPPORTED_CHAINS)
+// `name` values match DeFi Llama API exactly
+export const SUPPORTED_YIELD_CHAINS = [
+  { name: 'Base', chainId: 8453, color: 'blue', icon: '🔵' },
+  { name: 'Arbitrum', chainId: 42161, color: 'sky', icon: '🔷' },
+  { name: 'Optimism', chainId: 10, color: 'red', icon: '🔴' },
+  { name: 'Polygon', chainId: 137, color: 'purple', icon: '🟣' },
+  { name: 'Ethereum', chainId: 1, color: 'slate', icon: '⟠' },
+  { name: 'Solana', chainId: 1151111081099710, color: 'green', icon: '◎' },
+] as const;
+
+export type YieldChainName = typeof SUPPORTED_YIELD_CHAINS[number]['name'];
+
+export const YIELD_CHAIN_META: Record<string, typeof SUPPORTED_YIELD_CHAINS[number]> =
+  Object.fromEntries(SUPPORTED_YIELD_CHAINS.map(c => [c.name, c]));
+
+export function getYieldChainNames(): string[] {
+  return SUPPORTED_YIELD_CHAINS.map(c => c.name);
+}

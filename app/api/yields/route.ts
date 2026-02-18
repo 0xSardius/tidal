@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getYieldChainNames } from '@/lib/constants';
 
 interface DefiLlamaPool {
   pool: string;
@@ -24,6 +25,7 @@ interface DefiLlamaPool {
 
 export interface YieldOpportunity {
   id: string;
+  chain: string;
   protocol: string;
   symbol: string;
   apy: number;
@@ -42,7 +44,7 @@ let cachedData: { pools: YieldOpportunity[]; timestamp: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Map DeFi Llama pool to a risk level for our tier system
-function assessRisk(pool: DefiLlamaPool): 1 | 2 | 3 {
+export function assessRisk(pool: DefiLlamaPool): 1 | 2 | 3 {
   // Level 1 (Shallows): AAVE + conservative Morpho - stablecoins, single exposure, no IL, high TVL
   // Battle-tested protocols with institutional-grade risk management
   if (
@@ -68,6 +70,40 @@ function assessRisk(pool: DefiLlamaPool): 1 | 2 | 3 {
   return 3;
 }
 
+// Pure filter function for testability
+export function filterPools(
+  pools: YieldOpportunity[],
+  options: {
+    token?: string;
+    maxRisk?: number;
+    chains?: string[];
+    limit?: number;
+  }
+): YieldOpportunity[] {
+  const { token, maxRisk = 3, chains, limit = 10 } = options;
+  const supportedChains = getYieldChainNames();
+
+  let filtered = pools;
+
+  // Filter by chains
+  if (chains && chains.length > 0) {
+    filtered = filtered.filter((p) => chains.includes(p.chain));
+  } else {
+    // Default: all supported chains
+    filtered = filtered.filter((p) => supportedChains.includes(p.chain));
+  }
+
+  if (token) {
+    filtered = filtered.filter((p) => p.symbol.includes(token));
+  }
+
+  if (maxRisk < 3) {
+    filtered = filtered.filter((p) => p.riskLevel <= maxRisk);
+  }
+
+  return filtered.slice(0, limit);
+}
+
 async function fetchAndCachePools(): Promise<YieldOpportunity[]> {
   // Return cache if fresh
   if (cachedData && Date.now() - cachedData.timestamp < CACHE_TTL) {
@@ -85,18 +121,21 @@ async function fetchAndCachePools(): Promise<YieldOpportunity[]> {
   const json = await response.json();
   const allPools: DefiLlamaPool[] = json.data;
 
-  // Filter for Base chain, positive APY, reasonable TVL
-  const basePools = allPools.filter(
+  const supportedChains = getYieldChainNames();
+
+  // Filter for supported chains, positive APY, reasonable TVL
+  const validPools = allPools.filter(
     (p) =>
-      p.chain === 'Base' &&
+      supportedChains.includes(p.chain) &&
       p.apy > 0 &&
       p.apy < 100 && // Filter out obvious outliers/broken data
       p.tvlUsd > 100_000 // Minimum $100k TVL
   );
 
   // Map to our format
-  const opportunities: YieldOpportunity[] = basePools.map((p) => ({
+  const opportunities: YieldOpportunity[] = validPools.map((p) => ({
     id: p.pool,
+    chain: p.chain,
     protocol: p.project,
     symbol: p.symbol,
     apy: Math.round(p.apy * 100) / 100,
@@ -125,29 +164,22 @@ export async function GET(request: Request) {
     const token = searchParams.get('token')?.toUpperCase(); // e.g., "USDC"
     const maxRisk = parseInt(searchParams.get('maxRisk') || '3'); // 1, 2, or 3
     const limit = parseInt(searchParams.get('limit') || '10');
+    const chainsParam = searchParams.get('chains'); // e.g., "Base,Arbitrum"
+    const chains = chainsParam ? chainsParam.split(',').map(c => c.trim()) : undefined;
 
     const pools = await fetchAndCachePools();
 
-    // Apply filters
-    let filtered = pools;
+    const results = filterPools(pools, { token, maxRisk, chains, limit });
 
-    if (token) {
-      filtered = filtered.filter((p) => p.symbol.includes(token));
-    }
-
-    if (maxRisk < 3) {
-      filtered = filtered.filter((p) => p.riskLevel <= maxRisk);
-    }
-
-    // Limit results
-    const results = filtered.slice(0, limit);
+    // Collect unique chains in the results
+    const resultChains = [...new Set(results.map(r => r.chain))];
 
     return NextResponse.json({
       success: true,
       opportunities: results,
-      total: filtered.length,
+      total: results.length,
       timestamp: Date.now(),
-      chain: 'Base',
+      chains: resultChains,
     });
   } catch (error) {
     console.error('Yields API error:', error);

@@ -16,6 +16,7 @@ interface SidebarEntry {
   type: 'aave' | 'vault' | 'discovery';
   vaultSlug?: string;
   protocol?: string;
+  chain?: string;
 }
 
 // Visual styles
@@ -43,6 +44,7 @@ const EXECUTABLE_PROTOCOLS = ['aave-v3', 'morpho-v1', 'yo'];
 
 interface DeFiLlamaOpp {
   id: string;
+  chain: string;
   protocol: string;
   symbol: string;
   apy: number;
@@ -183,6 +185,7 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                   icon: meta?.icon || '🔭',
                   type: 'discovery',
                   protocol: opp.protocol,
+                  chain: opp.chain,
                 });
               }
             }
@@ -265,8 +268,11 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-sm flex-shrink-0">{entry.icon}</span>
                         <div className="min-w-0">
-                          <div className="text-xs font-medium text-slate-200 truncate">
+                          <div className="text-xs font-medium text-slate-200 truncate flex items-center gap-1">
                             {entry.name}
+                            {entry.chain && entry.chain !== 'Base' && (
+                              <span className="px-1 py-px rounded bg-slate-700/50 text-[9px] text-slate-400 font-normal">{entry.chain}</span>
+                            )}
                           </div>
                           <div className="text-[10px] text-slate-500 truncate">
                             {entry.token}
@@ -354,7 +360,7 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
       )}
 
       <div className="mt-1.5 text-center">
-        <span className="text-[9px] text-slate-600">Live rates · Powered by DeFi Llama</span>
+        <span className="text-[9px] text-slate-600">Live rates across 6 chains · DeFi Llama</span>
       </div>
     </div>
   );

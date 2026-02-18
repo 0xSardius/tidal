@@ -357,11 +357,11 @@ export const prepareSwapAndSupplyTool = tool({
 });
 
 /**
- * Scan yield opportunities across protocols on Base via DeFi Llama
+ * Scan yield opportunities across protocols and chains via DeFi Llama
  */
 export const scanYieldsTool = tool({
   description:
-    'Scan yield opportunities across multiple DeFi protocols on Base chain. Uses DeFi Llama to find the best rates. Use this when users ask about yields, best rates, or where to earn. Returns opportunities sorted by APY.',
+    'Scan yield opportunities across multiple DeFi protocols and chains. Uses DeFi Llama to find the best rates. Supports Base, Arbitrum, Optimism, Polygon, Ethereum, and Solana. Use this when users ask about yields, best rates, or where to earn. Returns opportunities sorted by APY.',
   inputSchema: z.object({
     token: z
       .enum(['USDC', 'WETH', 'ETH', 'DAI'])
@@ -381,9 +381,15 @@ export const scanYieldsTool = tool({
       .max(20)
       .optional()
       .describe('Number of results to return (default 5)'),
+    chains: z
+      .array(z.string())
+      .optional()
+      .describe(
+        'Filter by chains (optional). e.g. ["Base", "Arbitrum"]. If not provided, scans all supported chains: Base, Arbitrum, Optimism, Polygon, Ethereum, Solana.'
+      ),
   }),
   execute: async (input) => {
-    const { token, maxRisk = 2, limit = 5 } = input;
+    const { token, maxRisk = 2, limit = 5, chains } = input;
 
     try {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -391,6 +397,7 @@ export const scanYieldsTool = tool({
       if (token) params.set('token', token);
       params.set('maxRisk', maxRisk.toString());
       params.set('limit', limit.toString());
+      if (chains && chains.length > 0) params.set('chains', chains.join(','));
 
       const response = await fetch(`${baseUrl}/api/yields?${params}`);
       const data = await response.json();
@@ -406,6 +413,7 @@ export const scanYieldsTool = tool({
       // Format for the AI to present nicely
       const opportunities = data.opportunities.map(
         (opp: {
+          chain: string;
           protocol: string;
           symbol: string;
           apy: number;
@@ -415,6 +423,7 @@ export const scanYieldsTool = tool({
           riskLevel: number;
           apyMean30d: number | null;
         }) => ({
+          chain: opp.chain,
           protocol: opp.protocol,
           token: opp.symbol,
           apy: opp.apy,
@@ -433,9 +442,9 @@ export const scanYieldsTool = tool({
       return {
         opportunities,
         total: data.total,
-        chain: 'Base',
+        chains: data.chains,
         source: 'DeFi Llama',
-        note: 'APY data is live from DeFi Llama. Rates change frequently.',
+        note: 'APY data is live from DeFi Llama. Rates change frequently. Only Base yields are currently executable — other chains are informational.',
       };
     } catch (error) {
       console.error('Yield scan error:', error);
