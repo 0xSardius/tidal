@@ -405,7 +405,7 @@ Completed a working AI-powered DeFi yield manager on Base with:
 *More protocols, riskier strategies, fuller product.*
 
 **Yield Scanner:**
-- [ ] Expand DeFi Llama filtering to index Arbitrum, Optimism, Polygon, Ethereum mainnet
+- [x] Expand DeFi Llama filtering to index Arbitrum, Optimism, Polygon, Ethereum mainnet (+ Solana)
 - [ ] Add protocol metadata: audit status, vault age, TVL trend, smart contract risk score
 - [ ] Surface reward token APY separately from base APY
 - [ ] Protocol-specific on-chain APY reads for accuracy (supplement DeFi Llama)
@@ -421,7 +421,7 @@ Completed a working AI-powered DeFi yield manager on Base with:
 ### Phase 3: True Cross-Chain Yield (EVM)
 *Li.Fi goes from swap layer to bridge layer.*
 
-- [ ] Remove `chain === "Base"` filter in DeFi Llama scanner — rank across all chains
+- [x] Remove `chain === "Base"` filter in DeFi Llama scanner — rank across all chains
 - [ ] Break-even calculator: `bridge_cost / (target_apy - current_apy) * principal = days`
 - [ ] Li.Fi bridge execution (cross-chain getQuote with `fromChainId !== toChainId`)
 - [ ] Cross-chain position tracking via cron job + DB (Phase 1 dependency)
