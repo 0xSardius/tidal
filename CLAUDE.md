@@ -383,6 +383,7 @@ Completed a working AI-powered DeFi yield manager on Base with:
 
 - [x] Add integration tests for AI tools (getQuote, prepareSupply, prepareVaultDeposit)
 - [x] Add tests for ActionCard execution paths (swap, aave_supply, vault_deposit, swap+supply)
+- [x] Add comprehensive test suite (206 tests across 12 files — see Test Coverage below)
 - [x] Create shared PortfolioContext — lift position data into single React context at dashboard layout
 - [x] Replace 4s hardcoded post-tx delay with progressive polling (0s, 1s, 2.5s, 5s)
 - [x] Add RPC fallback transport (Alchemy primary + public fallback via viem `fallback()`)
@@ -593,6 +594,30 @@ Phase 1 (Database) ──────────────────┐
 - **vs Zapper/DeBank**: They show data. Tidal *acts* on it.
 - **vs TradFi robo-advisors**: Tidal brings that UX to DeFi with on-chain execution.
 - **Moat**: AI personalization (risk tiers) + universal vault adapter + Li.Fi routing + x402 agent API
+
+### Test Coverage
+
+**206 tests across 12 files** — run with `npx vitest run`
+
+| Test File | Tests | What It Covers |
+|-----------|-------|----------------|
+| `aave.test.ts` | 14 | `rayToApy`, `parseSupplyAmount`, `formatSupplyAmount`, `getAaveAddresses`, `prepareSupplyTx`, `prepareWithdrawTx`, token decimals |
+| `aave-execution.test.ts` | 20 | `executeAaveSupply` (approval flow, skip approval, max amount, zero balance, rejection), `executeAaveWithdraw` (specific amount, max/MaxUint256, rejection), `describeAaveAction`, `TOKEN_DECIMALS` |
+| `action-card-helpers.test.ts` | 16 | `friendlyError` (user rejection, insufficient funds, slippage, nonce, network, gas estimation, truncation), amount validation, quote staleness |
+| `constants.test.ts` | 24 | `SUPPORTED_CHAINS`, `DEFAULT_CHAIN`, `CONTRACTS`, `TOKENS`, `RISK_DEPTHS` (all tiers, progressive strategies), `SUPPORTED_YIELD_CHAINS`, `YIELD_CHAIN_META`, `getYieldChainNames` |
+| `db-connection.test.ts` | 7 | Null-safe DB connection, Drizzle instance, table/enum exports |
+| `db-schema.test.ts` | 19 | Zod schema validation for users, transactions, sessions, yield actions |
+| `lifi.test.ts` | 14 | `BASE_TOKENS` (decimals, addresses, chain IDs), `describeRoute` (gas, duration, empty steps), `formatRouteSteps` |
+| `prompts.test.ts` | 21 | `buildSystemPrompt` (all tiers, wallet state, positions, multi-chain section, tool mentions), `buildWelcomeMessage` (all tiers, cross-chain), `getGreeting` |
+| `strategies.test.ts` | 30 | `getStrategiesForDepth`, `getStrategiesForToken`, `needsSwap` (ETH/WETH edge cases), `recommendStrategy` (APY ranking, swap detection), `describeStrategy`, `getStrategiesContext` |
+| `vault-registry.test.ts` | 9 | Registry structure, `getVault`, `getVaultSlugs`, `getVaultsForRisk`, `getVaultsForToken` |
+| `vaults.test.ts` | 13 | `executeVaultDeposit` (approval flow, skip approval, rejection, 18-decimal), `executeVaultWithdraw` (max, partial, zero position), `getVaultPosition` (has shares, no shares, RPC error) |
+| `yields.test.ts` | 19 | `SUPPORTED_YIELD_CHAINS`, `assessRisk`, `filterPools` (single chain, multi-chain, token filter, risk filter, limit, unsupported chain exclusion) |
+
+**Not tested** (requires browser/wallet environment):
+- React hooks (`useAave`, `useVaultPositions`, `useLifiSwap`, `useWallet`, `useRiskDepth`)
+- React components (`ActionCard`, `ChatPanel`, `PortfolioPanel`, `StrategyCards`)
+- API routes (would need HTTP request mocking or integration test server)
 
 ### Lessons Learned (Battle-Tested)
 
