@@ -1,5 +1,5 @@
 import { formatUnits, parseUnits, type Address } from 'viem';
-import { base, baseSepolia } from 'viem/chains';
+import { base, baseSepolia, arbitrum, optimism } from 'viem/chains';
 
 // AAVE V3 Pool ABI (minimal for supply/withdraw)
 export const AAVE_POOL_ABI = [
@@ -133,6 +133,22 @@ export const AAVE_ADDRESSES = {
     tokens: {
       USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address,
       DAI: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb' as Address,
+      WETH: '0x4200000000000000000000000000000000000006' as Address,
+    },
+  },
+  [arbitrum.id]: {
+    pool: '0x794a61358D6845594F94dc1DB02A252b5b4814aD' as Address,
+    dataProvider: '0x69FA688f1Dc47d4B5d8029D5a35FB7a548310654' as Address,
+    tokens: {
+      USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as Address,
+      WETH: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1' as Address,
+    },
+  },
+  [optimism.id]: {
+    pool: '0x794a61358D6845594F94dc1DB02A252b5b4814aD' as Address,
+    dataProvider: '0x69FA688f1Dc47d4B5d8029D5a35FB7a548310654' as Address,
+    tokens: {
+      USDC: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85' as Address,
       WETH: '0x4200000000000000000000000000000000000006' as Address,
     },
   },

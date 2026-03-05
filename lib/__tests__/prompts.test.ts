@@ -38,9 +38,8 @@ describe('buildWelcomeMessage', () => {
   it('returns Deep Water welcome with cross-chain mention', () => {
     const msg = buildWelcomeMessage('deep-water');
     expect(msg).toContain('Deep Water');
-    expect(msg).toContain('all chains');
     expect(msg).toContain('Arbitrum');
-    expect(msg).toContain('Solana');
+    expect(msg).toContain('Optimism');
   });
 
   it('includes a greeting in each welcome', () => {
@@ -53,7 +52,7 @@ describe('buildWelcomeMessage', () => {
 
   it('Deep Water mentions multi-step strategies', () => {
     const msg = buildWelcomeMessage('deep-water');
-    expect(msg).toContain('swap + deposit');
+    expect(msg).toContain('swap + bridge + deposit');
   });
 
   it('Shallows mentions safe harbors', () => {
@@ -101,12 +100,12 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('No active positions');
   });
 
-  it('includes multi-chain scanning section', () => {
+  it('includes cross-chain yield section', () => {
     const prompt = buildSystemPrompt(baseContext);
-    expect(prompt).toContain('Multi-Chain Yield Scanning');
-    expect(prompt).toContain('6 chains');
+    expect(prompt).toContain('Cross-Chain Yield Optimization');
+    expect(prompt).toContain('3 chains');
     expect(prompt).toContain('Arbitrum');
-    expect(prompt).toContain('Solana');
+    expect(prompt).toContain('Optimism');
   });
 
   it('includes Li.Fi mention', () => {
@@ -143,7 +142,7 @@ describe('buildSystemPrompt', () => {
 
   it('mentions cross-chain in Mid-Depth and Deep Water sections', () => {
     const midDepth = buildSystemPrompt({ riskDepth: 'mid-depth', walletConnected: true });
-    expect(midDepth).toContain('other chains');
+    expect(midDepth).toContain('across all chains');
 
     const deepWater = buildSystemPrompt({ riskDepth: 'deep-water', walletConnected: true });
     expect(deepWater).toContain('cross-chain');
@@ -154,14 +153,37 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('Available Strategies');
   });
 
-  it('includes Base-only execution note', () => {
+  it('includes executable chains note', () => {
     const prompt = buildSystemPrompt(baseContext);
-    expect(prompt).toContain('Only Base yields are currently executable');
+    expect(prompt).toContain('Base, Arbitrum, and Optimism');
   });
 
   it('includes dollar-to-token conversion warning', () => {
     const prompt = buildSystemPrompt(baseContext);
     expect(prompt).toContain('TOKEN units');
     expect(prompt).toContain('dollar');
+  });
+
+  it('defaults to supervised mode', () => {
+    const prompt = buildSystemPrompt(baseContext);
+    expect(prompt).toContain('Supervised');
+    expect(prompt).toContain('explain and wait for approval');
+  });
+
+  it('includes autopilot mode when set', () => {
+    const prompt = buildSystemPrompt({ ...baseContext, autonomyMode: 'autopilot' });
+    expect(prompt).toContain('AUTO-PILOT');
+    expect(prompt).toContain('full authority to execute');
+  });
+
+  it('mentions prepareBridge and prepareCrossChainYield tools', () => {
+    const prompt = buildSystemPrompt(baseContext);
+    expect(prompt).toContain('prepareBridge');
+    expect(prompt).toContain('prepareCrossChainYield');
+  });
+
+  it('autopilot welcome includes auto-pilot note', () => {
+    const msg = buildWelcomeMessage('mid-depth', true);
+    expect(msg).toContain('Auto-Pilot');
   });
 });

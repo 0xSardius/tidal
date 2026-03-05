@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.33",
+    "@ai-sdk/mcp": "^1.0.24",
     "@ai-sdk/react": "^3.0.67",
     "@lifi/sdk": "^3.15.4",
     "@neondatabase/serverless": "^1.0.2",

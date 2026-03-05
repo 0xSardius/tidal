@@ -1,5 +1,6 @@
 import { streamText, convertToModelMessages, stepCountIs } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
+import { createMCPClient } from '@ai-sdk/mcp';
 import { tidalTools } from '@/lib/ai/tools';
 import { buildSystemPrompt } from '@/lib/ai/prompts';
 import { type RiskDepth } from '@/lib/constants';
@@ -10,12 +11,13 @@ import { eq, sql } from 'drizzle-orm';
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
+  let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | null = null;
+
   try {
     const body = await req.json();
     console.log('Received body:', JSON.stringify(body, null, 2));
 
     const { messages, data } = body;
-    // Context comes from sendMessage({ body: { data: { context } } })
     const context = data?.context;
 
     console.log('Messages count:', messages?.length);
@@ -26,6 +28,7 @@ export async function POST(req: Request) {
       riskDepth: (context?.riskDepth || 'shallows') as RiskDepth,
       walletConnected: context?.walletConnected ?? false,
       positions: context?.positions || [],
+      autonomyMode: (context?.autonomyMode || 'supervised') as 'supervised' | 'autopilot',
     };
 
     const marketContext = {
@@ -36,8 +39,10 @@ export async function POST(req: Request) {
     const systemPrompt = buildSystemPrompt(userContext, marketContext);
 
     // Include wallet context in system prompt for tools
+    const chainName = context?.chainName || 'Base';
+    const chainId = context?.chainId || 8453;
     const walletInfo = context?.walletAddress
-      ? `\n\nUser wallet: ${context.walletAddress}\nChain: Base (chainId: 8453)`
+      ? `\n\nUser wallet: ${context.walletAddress}\nChain: ${chainName} (chainId: ${chainId})`
       : '\n\nUser wallet: Not connected';
 
     // Track session in DB (fire-and-forget)
@@ -54,7 +59,6 @@ export async function POST(req: Request) {
 
       const wallet = context?.walletAddress?.toLowerCase();
 
-      // Upsert session
       db.select()
         .from(sessions)
         .where(eq(sessions.id, sessionId))
@@ -84,6 +88,19 @@ export async function POST(req: Request) {
         .catch((err) => console.error('Session tracking error:', err));
     }
 
+    // Try to connect Li.Fi MCP server for additional tools
+    let allTools = { ...tidalTools } as Record<string, unknown>;
+    try {
+      mcpClient = await createMCPClient({
+        transport: { type: 'sse', url: 'https://mcp.li.quest/sse' },
+      });
+      const mcpTools = await mcpClient.tools();
+      allTools = { ...tidalTools, ...mcpTools };
+      console.log('Li.Fi MCP tools loaded:', Object.keys(mcpTools).length);
+    } catch (err) {
+      console.warn('Li.Fi MCP server unavailable, using tidal tools only:', err instanceof Error ? err.message : err);
+    }
+
     // Convert UI messages to model messages (async function!)
     const modelMessages = await convertToModelMessages(messages);
     console.log('Converted messages:', modelMessages?.length);
@@ -92,12 +109,22 @@ export async function POST(req: Request) {
       model: anthropic('claude-sonnet-4-20250514'),
       system: systemPrompt + walletInfo,
       messages: modelMessages,
-      tools: tidalTools,
-      stopWhen: stepCountIs(5), // Allow AI to continue after tool calls (up to 5 steps)
+      tools: allTools as typeof tidalTools,
+      stopWhen: stepCountIs(5),
+      onFinish: async () => {
+        // Clean up MCP client when stream finishes
+        if (mcpClient) {
+          try { await mcpClient.close(); } catch { /* ignore */ }
+        }
+      },
     });
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
+    // Clean up MCP client on error
+    if (mcpClient) {
+      try { await mcpClient.close(); } catch { /* ignore */ }
+    }
     console.error('Chat API error:', error);
     return new Response(
       JSON.stringify({ error: 'Failed to process chat request', details: String(error) }),

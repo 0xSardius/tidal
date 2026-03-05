@@ -4,6 +4,7 @@ import { useChat, type UIMessage } from '@ai-sdk/react';
 import { useEffect, useRef, useState, useCallback, FormEvent } from 'react';
 import { useAccount } from 'wagmi';
 import { useRiskDepth } from '@/lib/hooks/useRiskDepth';
+import { useAutonomy } from '@/lib/hooks/useAutonomy';
 import { usePortfolio } from '@/lib/contexts/PortfolioContext';
 import { ActionCard } from './ActionCard';
 import { LifiQuoteCard } from './LifiQuoteCard';
@@ -43,14 +44,18 @@ function getToolInvocations(message: UIMessage): ToolPart[] {
   return message.parts.filter(isToolPart) as ToolPart[];
 }
 
+// Action types that render ActionCards
+const ACTION_TYPES = ['supply', 'withdraw', 'swap', 'swap_and_supply', 'vault_deposit', 'vault_withdraw', 'bridge', 'cross_chain_yield'];
+
 export function ChatPanelContent() {
   const [input, setInput] = useState('');
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get context for AI
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
   const { riskDepth } = useRiskDepth();
+  const { mode: autonomyMode, toggleMode, isAutopilot } = useAutonomy();
   const { aavePositions, vaultPositions } = usePortfolio();
 
   // Build context for the AI
@@ -58,6 +63,9 @@ export function ChatPanelContent() {
     riskDepth,
     walletConnected: isConnected,
     walletAddress: address,
+    chainId: chain?.id || 8453,
+    chainName: chain?.name || 'Base',
+    autonomyMode,
     positions: [
       ...aavePositions.map((p) => ({
         token: p.token,
@@ -125,6 +133,27 @@ export function ChatPanelContent() {
             <p className="text-xs text-slate-500">{depthConfig.description}</p>
           </div>
           <div className="flex items-center gap-2">
+            {/* Auto-pilot toggle */}
+            <button
+              onClick={toggleMode}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                isAutopilot
+                  ? 'bg-amber-500/15 text-amber-400 border border-amber-400/30 hover:bg-amber-500/25'
+                  : 'bg-white/5 text-slate-500 border border-white/10 hover:bg-white/10 hover:text-slate-400'
+              }`}
+            >
+              {isAutopilot ? (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  Auto-Pilot
+                </>
+              ) : (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                  Supervised
+                </>
+              )}
+            </button>
             {isConnected ? (
               <span className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -155,7 +184,7 @@ export function ChatPanelContent() {
                 <span className="text-xs font-medium text-cyan-400">Tidal</span>
               </div>
               <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                {getWelcomeMessage(riskDepth ?? 'shallows')}
+                {getWelcomeMessage(riskDepth ?? 'shallows', isAutopilot)}
               </div>
             </div>
           </div>
@@ -209,7 +238,6 @@ export function ChatPanelContent() {
             {toolInvocations.length > 0 && (
               <div className="space-y-2">
                 {toolInvocations.map((tool, idx) => {
-                  // Get tool name from type (e.g., 'tool-prepareSwap' -> 'prepareSwap')
                   const toolName = tool.toolName || tool.type.replace('tool-', '');
 
                   // Show loading state for pending tool calls (v6 states)
@@ -243,8 +271,8 @@ export function ChatPanelContent() {
                   if (tool.state === 'output-available') {
                     const result = tool.output as Record<string, unknown>;
 
-                    // ActionCard for supply/withdraw/swap/vault actions
-                    if (result.action && ['supply', 'withdraw', 'swap', 'swap_and_supply', 'vault_deposit', 'vault_withdraw'].includes(result.action as string)) {
+                    // ActionCard for all executable actions
+                    if (result.action && ACTION_TYPES.includes(result.action as string)) {
                       return (
                         <ActionCard
                           key={idx}
@@ -261,6 +289,14 @@ export function ChatPanelContent() {
                           fromDecimals={result.fromDecimals as number | undefined}
                           toDecimals={result.toDecimals as number | undefined}
                           chainId={result.chainId as number | undefined}
+                          // Cross-chain props
+                          fromChainId={result.fromChainId as number | undefined}
+                          toChainId={result.toChainId as number | undefined}
+                          fromChain={result.fromChain as string | undefined}
+                          toChain={result.toChain as string | undefined}
+                          bridgeCost={result.bridgeCost as string | undefined}
+                          estimatedTime={result.estimatedTime as string | undefined}
+                          breakEvenDays={result.breakEvenDays as number | undefined}
                           // Vault-specific props
                           vaultSlug={result.vaultSlug as string | undefined}
                           vaultName={result.vaultName as string | undefined}
@@ -275,6 +311,8 @@ export function ChatPanelContent() {
                           steps={result.steps as ActionCardSteps}
                           risks={result.risks as string[] | undefined}
                           note={result.note as string | null | undefined}
+                          // Auto-pilot
+                          autoExecute={isAutopilot}
                           onApprove={() => {
                             // No DB write needed — success/error handlers cover it
                           }}
@@ -295,10 +333,10 @@ export function ChatPanelContent() {
                           }}
                           onSuccess={(txHash) => {
                             if (address) {
-                              // Map action to transaction type
                               const actionMap: Record<string, string> = {
                                 supply: 'supply', withdraw: 'withdraw', swap: 'swap',
-                                swap_and_supply: 'swap_and_supply',
+                                swap_and_supply: 'swap_and_supply', bridge: 'bridge',
+                                cross_chain_yield: 'cross_chain_yield',
                                 vault_deposit: 'vault_deposit', vault_withdraw: 'vault_withdraw',
                               };
                               const txType = actionMap[result.action as string] || 'swap';
@@ -317,12 +355,14 @@ export function ChatPanelContent() {
                                   metadata: {
                                     estimatedApy: result.estimatedApy,
                                     vaultSlug: result.vaultSlug,
+                                    fromChain: result.fromChain,
+                                    toChain: result.toChain,
+                                    autonomyMode,
                                   },
                                 }),
                               })
                                 .then((res) => res.json())
                                 .then((data) => {
-                                  // Also log the yield action as approved
                                   if (data?.id) {
                                     fetch('/api/yield-actions', {
                                       method: 'POST',
@@ -332,7 +372,7 @@ export function ChatPanelContent() {
                                         recommendedProtocol: (result.protocol as string) || (result.vaultName as string) || null,
                                         recommendedApy: result.estimatedApy ? String(result.estimatedApy) : null,
                                         recommendedToken: (result.token as string) || null,
-                                        userAction: 'approved',
+                                        userAction: isAutopilot ? 'auto_approved' : 'approved',
                                         actualProtocol: (result.protocol as string) || (result.vaultName as string) || null,
                                         txId: data.id,
                                       }),
@@ -346,7 +386,8 @@ export function ChatPanelContent() {
                             if (address) {
                               const actionMap: Record<string, string> = {
                                 supply: 'supply', withdraw: 'withdraw', swap: 'swap',
-                                swap_and_supply: 'swap_and_supply',
+                                swap_and_supply: 'swap_and_supply', bridge: 'bridge',
+                                cross_chain_yield: 'cross_chain_yield',
                                 vault_deposit: 'vault_deposit', vault_withdraw: 'vault_withdraw',
                               };
                               const txType = actionMap[result.action as string] || 'swap';
@@ -517,14 +558,20 @@ export function ChatPanelContent() {
           </button>
         </form>
         <p className="text-xs text-slate-600 mt-2 text-center">
-          Tidal will ask for approval before executing any transactions
+          {isAutopilot
+            ? 'Auto-Pilot mode — Tidal will execute transactions automatically'
+            : 'Tidal will ask for approval before executing any transactions'}
         </p>
       </div>
     </div>
   );
 }
 
-function getWelcomeMessage(riskDepth: string): string {
+function getWelcomeMessage(riskDepth: string, isAutopilot?: boolean): string {
+  const autopilotNote = isAutopilot
+    ? '\n\nAuto-Pilot is ON — I\'ll scan, bridge, and deposit automatically when I find better yields across chains.'
+    : '';
+
   if (riskDepth === 'shallows') {
     return `Welcome to the Shallows - calm, protected waters.
 
@@ -535,32 +582,34 @@ I can help you:
 - Choose between institutional-grade vaults (Steakhouse, Gauntlet)
 - Swap tokens via Li.Fi at the best rates
 
-What would you like to explore?`;
+What would you like to explore?${autopilotNote}`;
   }
 
   if (riskDepth === 'mid-depth') {
     return `Welcome to Mid-Depth - stronger currents, better rewards.
 
-I'm Tidal, your AI guide for DeFi yield. At this depth, I unlock reward-boosted vaults and higher-yield strategies.
+I'm Tidal, your AI guide for DeFi yield. At this depth, I scan yields across chains and can bridge your funds for better rates.
 
 I can help you:
-- Access reward-boosted vaults (Moonwell, Extrafi, Clearstar) for higher APY
-- Earn yield on ETH with dedicated WETH vaults
-- Compare yields across all protocols in real-time
+- Scan yields across Base, Arbitrum, and Optimism
+- Bridge funds cross-chain via Li.Fi for better rates
+- Access reward-boosted vaults (Moonwell, Extrafi, YO Protocol)
+- Compare cross-chain rates with break-even analysis
 
-Ask me "What are the best yields right now?" to see what the currents are bringing in.`;
+Ask me "What are the best yields right now?" to see what the currents are bringing in.${autopilotNote}`;
   }
 
   return `Welcome to Deep Water - strong currents, bigger rewards.
 
-I'm Tidal, your AI guide for DeFi yield. Down here, I scan every opportunity and can execute multi-step strategies.
+I'm Tidal, your AI guide for DeFi yield. Down here, I scan every opportunity across all chains and can move your funds cross-chain automatically.
 
 I can help you:
-- Find the highest yields across all protocols on Base
-- Execute complex strategies (swap + deposit in one flow)
+- Find the highest yields across Base, Arbitrum, Optimism, and beyond
+- Bridge + deposit in one flow via Li.Fi for cross-chain yield
+- Execute multi-step strategies (swap + bridge + deposit)
 - Access LP positions and reward-boosted pools
 
-The deep ocean has the biggest waves. Let me know where you want to dive.`;
+The deep ocean has the biggest waves. Let me know where you want to dive.${autopilotNote}`;
 }
 
 // Type for ActionCard steps

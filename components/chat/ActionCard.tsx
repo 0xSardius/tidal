@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAccount, usePublicClient, useSwitchChain } from 'wagmi';
 import { useQueryClient } from '@tanstack/react-query';
 import { getWalletClient } from '@wagmi/core';
@@ -11,6 +11,7 @@ import { getSwapQuote, executeSwapFromQuote, configureLifi, type RouteExecutionS
 import { executeAaveSupply, executeAaveWithdraw, type AaveExecutionStatus, type AaveToken } from '@/lib/aave';
 import { executeVaultDeposit, executeVaultWithdraw, type VaultExecutionStatus } from '@/lib/vaults';
 import { getVault } from '@/lib/vault-registry';
+import { getExplorerTxUrl, chainIdToName } from '@/lib/chains';
 
 // Parse blockchain/wallet errors into friendly messages
 function friendlyError(err: unknown): string {
@@ -51,6 +52,14 @@ interface ActionCardProps {
   fromDecimals?: number;
   toDecimals?: number;
   chainId?: number;
+  // Cross-chain props
+  fromChainId?: number;
+  toChainId?: number;
+  fromChain?: string;
+  toChain?: string;
+  bridgeCost?: string;
+  estimatedTime?: string;
+  breakEvenDays?: number;
   // Vault-specific props
   vaultSlug?: string;
   vaultName?: string;
@@ -70,6 +79,8 @@ interface ActionCardProps {
   }>;
   risks?: string[];
   note?: string | null;
+  // Auto-pilot
+  autoExecute?: boolean;
   onApprove?: () => void;
   onReject?: () => void;
   onSuccess?: (txHash: string) => void;
@@ -77,7 +88,7 @@ interface ActionCardProps {
 }
 
 type ExecutionStatus = 'idle' | 'quoting' | 'pending' | 'executing' | 'completed' | 'failed';
-type ComboStep = 0 | 1 | 2; // 0 = not started, 1 = swapping, 2 = supplying
+type ComboStep = 0 | 1 | 2; // 0 = not started, 1 = step 1, 2 = step 2
 
 // Max age for an ActionCard before requiring a fresh quote (5 minutes)
 const MAX_CARD_AGE_MS = 5 * 60 * 1000;
@@ -95,6 +106,13 @@ export function ActionCard({
   fromDecimals,
   toDecimals,
   chainId,
+  fromChainId,
+  toChainId,
+  fromChain,
+  toChain,
+  bridgeCost,
+  estimatedTime,
+  breakEvenDays,
   vaultSlug,
   vaultName,
   curator,
@@ -107,13 +125,16 @@ export function ActionCard({
   steps,
   risks,
   note,
+  autoExecute,
   onApprove,
   onReject,
   onSuccess,
   onError,
 }: ActionCardProps) {
   const { address, isConnected, chain } = useAccount();
-  const publicClient = usePublicClient({ chainId: base.id });
+  // Use the source chain for the public client (fromChainId for cross-chain, chainId for same-chain)
+  const sourceChainId = fromChainId || chainId || base.id;
+  const publicClient = usePublicClient({ chainId: sourceChainId });
   const { switchChain } = useSwitchChain();
   const queryClient = useQueryClient();
 
@@ -123,8 +144,6 @@ export function ActionCard({
       queryClient.invalidateQueries({ queryKey: ['readContracts'] });
       queryClient.invalidateQueries({ queryKey: ['balance'] });
     };
-    // Progressive polling: immediate, then 1s, 2.5s, 5s
-    // Picks up changes faster on responsive RPCs, still catches slow indexers
     invalidate();
     setTimeout(invalidate, 1000);
     setTimeout(invalidate, 2500);
@@ -138,8 +157,18 @@ export function ActionCard({
   const [comboStep, setComboStep] = useState<ComboStep>(0);
   const [createdAt] = useState(() => Date.now());
 
-  const isWrongChain = chain?.id !== base.id;
+  const isWrongChain = chain?.id !== sourceChainId;
   const isStale = Date.now() - createdAt > MAX_CARD_AGE_MS;
+  const isCrossChain = action === 'bridge' || action === 'cross_chain_yield';
+
+  // Auto-execute in autopilot mode
+  useEffect(() => {
+    if (autoExecute && status === 'idle' && isConnected && !isStale) {
+      const timer = setTimeout(() => handleApprove(), 800);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoExecute, status, isConnected, isStale]);
 
   const handleApprove = async () => {
     if (!isConnected || !address) {
@@ -166,16 +195,15 @@ export function ActionCard({
     // Check if on correct chain, prompt to switch if not
     if (isWrongChain) {
       setStatus('pending');
-      setStatusMessage('Switching to Base network...');
+      setStatusMessage(`Switching to ${chainIdToName(sourceChainId) || 'correct'} network...`);
       try {
-        await switchChain({ chainId: base.id });
-        // After switching, user needs to click again
+        await switchChain({ chainId: sourceChainId });
         setStatus('idle');
         setStatusMessage('');
-        setError('Switched to Base. Please click Approve again.');
+        setError(`Switched to ${chainIdToName(sourceChainId)}. Please click Approve again.`);
         return;
       } catch (err) {
-        setError('Please switch to Base network in your wallet');
+        setError(`Please switch to ${chainIdToName(sourceChainId) || 'the correct'} network in your wallet`);
         setStatus('failed');
         return;
       }
@@ -188,10 +216,8 @@ export function ActionCard({
       setError(undefined);
 
       try {
-        // Configure Li.Fi with wallet providers
         configureLifi();
 
-        // Fetch fresh quote with user's actual address
         const fromAmountWei = parseUnits(amount, fromDecimals).toString();
         const quoteResult = await getSwapQuote({
           fromToken: fromTokenAddress,
@@ -209,7 +235,6 @@ export function ActionCard({
         setStatus('pending');
         setStatusMessage('Confirm in your wallet...');
 
-        // Execute the swap
         const result = await executeSwapFromQuote(
           quoteResult.quote,
           (update: RouteExecutionStatus) => {
@@ -240,9 +265,180 @@ export function ActionCard({
         onError?.(errorMsg);
       }
     }
+    // For bridge actions (cross-chain swap via Li.Fi)
+    else if (action === 'bridge' && fromTokenAddress && toTokenAddress && amount && fromDecimals) {
+      setStatus('quoting');
+      setStatusMessage(`Getting bridge quote via Li.Fi...`);
+      setError(undefined);
+
+      try {
+        configureLifi();
+
+        const fromAmountWei = parseUnits(amount, fromDecimals).toString();
+        const quoteResult = await getSwapQuote({
+          fromToken: fromTokenAddress,
+          toToken: toTokenAddress,
+          fromAmount: fromAmountWei,
+          fromChain: fromChainId || chainId || 8453,
+          toChain: toChainId || chainId || 8453,
+          fromAddress: address,
+        });
+
+        if (!quoteResult.success || !quoteResult.quote) {
+          throw new Error(quoteResult.error || 'Failed to get bridge quote');
+        }
+
+        setStatus('pending');
+        setStatusMessage(`Confirm bridge in your wallet...`);
+
+        const result = await executeSwapFromQuote(
+          quoteResult.quote,
+          (update: RouteExecutionStatus) => {
+            setStatus(update.status === 'completed' ? 'completed' :
+                     update.status === 'failed' ? 'failed' : 'executing');
+            setStatusMessage(update.status === 'executing'
+              ? `Bridging via Li.Fi... ${estimatedTime || ''}`
+              : update.message);
+            if (update.txHash) {
+              setTxHash(update.txHash);
+            }
+          }
+        );
+
+        if (result.success) {
+          setStatus('completed');
+          setStatusMessage(`Bridge completed! Funds arrived on ${toChain || chainIdToName(toChainId || 0)}`);
+          invalidatePositions();
+          onApprove?.();
+          if (txHash) onSuccess?.(txHash);
+        } else {
+          throw new Error(result.error || 'Bridge failed');
+        }
+      } catch (err) {
+        console.error('Bridge error:', err);
+        const errorMsg = friendlyError(err);
+        setError(errorMsg);
+        setStatus('failed');
+        setStatusMessage('');
+        onError?.(errorMsg);
+      }
+    }
+    // For cross-chain yield (bridge + supply to AAVE on destination)
+    else if (action === 'cross_chain_yield' && fromTokenAddress && toTokenAddress && amount && fromDecimals && toChainId) {
+      if (!publicClient) {
+        setError('Network connection not ready. Please try again.');
+        setStatus('failed');
+        return;
+      }
+
+      setStatus('quoting');
+      setComboStep(1);
+      setStatusMessage(`Step 1/2: Getting bridge quote via Li.Fi...`);
+      setError(undefined);
+
+      try {
+        configureLifi();
+
+        // Step 1: Bridge via Li.Fi
+        const fromAmountWei = parseUnits(amount, fromDecimals).toString();
+        const quoteResult = await getSwapQuote({
+          fromToken: fromTokenAddress,
+          toToken: toTokenAddress,
+          fromAmount: fromAmountWei,
+          fromChain: fromChainId || chainId || 8453,
+          toChain: toChainId,
+          fromAddress: address,
+        });
+
+        if (!quoteResult.success || !quoteResult.quote) {
+          throw new Error(quoteResult.error || 'Failed to get bridge quote');
+        }
+
+        setStatus('pending');
+        setStatusMessage('Step 1/2: Confirm bridge in your wallet...');
+
+        const bridgeResult = await executeSwapFromQuote(
+          quoteResult.quote,
+          (update: RouteExecutionStatus) => {
+            setStatus(update.status === 'completed' ? 'executing' :
+                     update.status === 'failed' ? 'failed' : 'executing');
+            setStatusMessage(`Step 1/2: ${update.status === 'executing' ? `Bridging via Li.Fi... ${estimatedTime || ''}` : update.message}`);
+            if (update.txHash) {
+              setTxHash(update.txHash);
+            }
+          }
+        );
+
+        if (!bridgeResult.success) {
+          throw new Error(bridgeResult.error || 'Bridge failed');
+        }
+
+        // Step 2: Supply to AAVE on destination chain
+        setComboStep(2);
+        setStatus('pending');
+        setStatusMessage(`Step 2/2: Supplying to AAVE on ${toChain || chainIdToName(toChainId)}...`);
+
+        // Get wallet client for destination chain
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: toChainId });
+        if (!wc) {
+          throw new Error('Wallet not ready on destination chain. Please try again.');
+        }
+
+        // Get public client for destination chain — use wagmi core
+        const { createPublicClient, http } = await import('viem');
+        const { TIDAL_CHAINS } = await import('@/lib/chains');
+        const destChainConfig = TIDAL_CHAINS[toChainId];
+        const destPublicClient = createPublicClient({
+          chain: { id: toChainId, name: destChainConfig?.name || 'Unknown', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [] } } },
+          transport: http(),
+        });
+
+        const supplyToken = (token || fromToken) as AaveToken;
+
+        const supplyResult = await executeAaveSupply({
+          chainId: toChainId,
+          token: supplyToken,
+          amount: 'max', // Supply everything we received from bridge
+          userAddress: address,
+          walletClient: wc as never,
+          publicClient: destPublicClient as never,
+          onUpdate: (update: AaveExecutionStatus) => {
+            setStatusMessage(`Step 2/2: ${update.message}`);
+            if (update.txHash) {
+              setTxHash(update.txHash);
+            }
+            if (update.status === 'completed') {
+              setStatus('completed');
+            } else if (update.status === 'failed') {
+              setStatus('failed');
+            } else {
+              setStatus('executing');
+            }
+          },
+        });
+
+        if (supplyResult.success) {
+          setStatus('completed');
+          setStatusMessage(`Cross-chain yield complete! ${token} earning on ${toChain || chainIdToName(toChainId)}`);
+          setComboStep(0);
+          invalidatePositions();
+          onApprove?.();
+          if (supplyResult.txHash) onSuccess?.(supplyResult.txHash);
+        } else {
+          throw new Error(supplyResult.error || 'Supply on destination chain failed');
+        }
+      } catch (err) {
+        console.error('Cross-chain yield error:', err);
+        const errorMsg = friendlyError(err);
+        setError(errorMsg);
+        setStatus('failed');
+        setStatusMessage('');
+        onError?.(errorMsg);
+      }
+    }
     // For AAVE supply actions
     else if (action === 'supply') {
-      // Check for missing requirements
       if (!token || !amount) {
         setError('Missing token or amount');
         setStatus('failed');
@@ -259,15 +455,14 @@ export function ActionCard({
       setError(undefined);
 
       try {
-        // Fetch wallet client lazily (Privy doesn't provide it via useWalletClient hook reliably)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: sourceChainId });
         if (!wc) {
           throw new Error('Wallet not ready. Please reconnect and try again.');
         }
 
         const result = await executeAaveSupply({
-          chainId: chainId || 8453, // Base Mainnet
+          chainId: chainId || 8453,
           token: token as AaveToken,
           amount,
           userAddress: address,
@@ -325,7 +520,7 @@ export function ActionCard({
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: sourceChainId });
         if (!wc) {
           throw new Error('Wallet not ready. Please reconnect and try again.');
         }
@@ -385,7 +580,7 @@ export function ActionCard({
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: sourceChainId });
         if (!wc) {
           throw new Error('Wallet not ready. Please reconnect and try again.');
         }
@@ -429,10 +624,7 @@ export function ActionCard({
         setStatus('pending');
         setStatusMessage('Step 2/2: Supplying to AAVE...');
 
-        // Determine supply token and amount
-        // The toToken from the swap is what we supply
         const supplyToken = toToken as AaveToken;
-        // Use max balance approach - supply whatever we received from swap
         const supplyAmount = 'max';
 
         const supplyResult = await executeAaveSupply({
@@ -497,7 +689,7 @@ export function ActionCard({
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: sourceChainId });
         if (!wc) {
           throw new Error('Wallet not ready. Please reconnect and try again.');
         }
@@ -562,7 +754,7 @@ export function ActionCard({
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const wc = await getWalletClient(wagmiConfig as any, { chainId: base.id });
+        const wc = await getWalletClient(wagmiConfig as any, { chainId: sourceChainId });
         if (!wc) {
           throw new Error('Wallet not ready. Please reconnect and try again.');
         }
@@ -625,6 +817,8 @@ export function ActionCard({
   const actionLabel = action === 'supply' ? 'Supply to AAVE' :
                       action === 'withdraw' ? 'Withdraw from AAVE' :
                       action === 'swap' ? `Swap ${fromToken} → ${toToken}` :
+                      action === 'bridge' ? `Bridge ${fromToken || token} ${fromChain || ''} → ${toChain || ''}` :
+                      action === 'cross_chain_yield' ? `Cross-Chain Yield: ${fromChain} → ${toChain}` :
                       action === 'swap_and_supply' ? 'Swap & Supply' :
                       action === 'vault_deposit' ? `Deposit to ${vaultName || 'Vault'}` :
                       action === 'vault_withdraw' ? `Withdraw from ${vaultName || 'Vault'}` :
@@ -633,11 +827,18 @@ export function ActionCard({
   const actionIcon = action === 'supply' ? '📥' :
                      action === 'withdraw' ? '📤' :
                      action === 'swap' ? '🔄' :
+                     action === 'bridge' ? '🌉' :
+                     action === 'cross_chain_yield' ? '🌊' :
                      action === 'swap_and_supply' ? '🔄' :
                      action === 'vault_deposit' ? '🦋' :
                      action === 'vault_withdraw' ? '📤' : '⚡';
 
   const displayProvider = provider || protocol;
+
+  // Determine the explorer URL based on chain
+  const explorerChainId = txHash
+    ? (action === 'cross_chain_yield' && comboStep === 2 && toChainId ? toChainId : sourceChainId)
+    : sourceChainId;
 
   return (
     <div className="bg-slate-800/60 rounded-xl border border-cyan-500/20 overflow-hidden my-3">
@@ -652,7 +853,7 @@ export function ActionCard({
             </p>
           )}
         </div>
-        {(action === 'swap' || action === 'swap_and_supply') && status !== 'completed' && (
+        {(action === 'swap' || action === 'swap_and_supply' || action === 'bridge' || action === 'cross_chain_yield') && status !== 'completed' && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-cyan-500/20 to-teal-500/20 border border-cyan-400/20">
             <svg className="w-3 h-3 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" />
@@ -673,6 +874,11 @@ export function ActionCard({
             </div>
           )
         )}
+        {autoExecute && status !== 'completed' && (
+          <span className="text-[10px] font-bold tracking-wide text-amber-400 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/20">
+            AUTO
+          </span>
+        )}
         {status === 'completed' && (
           <span className="text-emerald-400 text-sm">✓ Done</span>
         )}
@@ -680,11 +886,56 @@ export function ActionCard({
 
       {/* Content */}
       <div className="p-4 space-y-3">
-        {/* Swap route visualization */}
+        {/* Bridge/cross-chain route visualization */}
+        {isCrossChain && fromChain && toChain && amount && (
+          <div className="p-3 rounded-lg bg-white/[0.03] border border-white/5">
+            <div className="flex items-center gap-3">
+              {/* From chain */}
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ring-1 ring-white/5 bg-blue-500/20 text-blue-400">
+                  {fromChain[0]}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-mono text-slate-200">{amount} {fromToken || token}</div>
+                  <div className="text-[10px] text-slate-500">{fromChain}</div>
+                </div>
+              </div>
+              {/* Arrow */}
+              <div className="flex-shrink-0">
+                <svg width="40" height="16" viewBox="0 0 40 16" className="text-cyan-400/50">
+                  <line x1="0" y1="8" x2="30" y2="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3">
+                    <animate attributeName="stroke-dashoffset" from="0" to="-12" dur="1.5s" repeatCount="indefinite" />
+                  </line>
+                  <polygon points="30,3 40,8 30,13" fill="currentColor" opacity="0.7" />
+                </svg>
+              </div>
+              {/* To chain */}
+              <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                <div className="min-w-0 text-right">
+                  <div className="text-sm font-mono text-emerald-400">{toToken || token}</div>
+                  <div className="text-[10px] text-slate-500">{toChain}</div>
+                </div>
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ring-1 ring-white/5 bg-emerald-500/20 text-emerald-400">
+                  {toChain[0]}
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
+              <span className="text-[10px] text-slate-600">
+                {bridgeCost && `Cost: ${bridgeCost}`}
+                {bridgeCost && estimatedTime && ' · '}
+                {estimatedTime && `Time: ${estimatedTime}`}
+                {breakEvenDays !== undefined && breakEvenDays > 0 && ` · Break-even: ~${breakEvenDays}d`}
+              </span>
+              <span className="text-[10px] text-cyan-500/50 font-medium">Powered by Li.Fi</span>
+            </div>
+          </div>
+        )}
+
+        {/* Swap route visualization (same-chain) */}
         {action === 'swap' && fromToken && toToken && amount && (
           <div className="p-3 rounded-lg bg-white/[0.03] border border-white/5">
             <div className="flex items-center gap-3">
-              {/* From */}
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ring-1 ring-white/5 ${
                   fromToken === 'USDC' || fromToken === 'USDT' ? 'bg-blue-500/20 text-blue-400' :
@@ -698,7 +949,6 @@ export function ActionCard({
                   <div className="text-[10px] text-slate-500">{fromToken}</div>
                 </div>
               </div>
-              {/* Arrow */}
               <div className="flex-shrink-0">
                 <svg width="40" height="16" viewBox="0 0 40 16" className="text-cyan-400/50">
                   <line x1="0" y1="8" x2="30" y2="8" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3">
@@ -707,7 +957,6 @@ export function ActionCard({
                   <polygon points="30,3 40,8 30,13" fill="currentColor" opacity="0.7" />
                 </svg>
               </div>
-              {/* To */}
               <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                 <div className="min-w-0 text-right">
                   <div className="text-sm font-mono text-emerald-400">{toToken}</div>
@@ -747,7 +996,7 @@ export function ActionCard({
         )}
 
         {/* Simple action details */}
-        {token && amount && !steps && action !== 'swap' && (
+        {token && amount && !steps && action !== 'swap' && !isCrossChain && (
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-400">Amount</span>
             <span className="text-sm font-medium text-white">
@@ -848,12 +1097,12 @@ export function ActionCard({
         {/* Transaction hash */}
         {txHash && (
           <a
-            href={`https://basescan.org/tx/${txHash}`}
+            href={getExplorerTxUrl(explorerChainId, txHash)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-xs text-cyan-400 hover:text-cyan-300"
           >
-            <span>View on BaseScan</span>
+            <span>View on {chainIdToName(explorerChainId) || 'Explorer'}</span>
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
@@ -879,8 +1128,8 @@ export function ActionCard({
         )}
       </div>
 
-      {/* Actions */}
-      {status !== 'completed' && (
+      {/* Actions - hidden in auto-execute mode */}
+      {status !== 'completed' && !autoExecute && (
         <div className="px-4 py-3 bg-white/5 flex gap-2">
           <button
             onClick={handleReject}
@@ -912,11 +1161,24 @@ export function ActionCard({
             ) : isStale ? (
               'Quote Expired'
             ) : isWrongChain ? (
-              'Switch to Base'
+              `Switch to ${chainIdToName(sourceChainId) || 'correct chain'}`
             ) : (
               'Approve'
             )}
           </button>
+        </div>
+      )}
+
+      {/* Auto-execute indicator */}
+      {status !== 'completed' && autoExecute && (
+        <div className="px-4 py-3 bg-amber-500/5 text-center">
+          <p className="text-xs text-amber-400/80 flex items-center justify-center gap-2">
+            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Auto-executing in pilot mode...
+          </p>
         </div>
       )}
 

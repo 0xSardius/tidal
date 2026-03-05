@@ -10,9 +10,10 @@ import {
   type QuoteRequest,
   type RoutesRequest
 } from '@lifi/sdk';
-import { base, baseSepolia } from 'viem/chains';
+import { base, baseSepolia, arbitrum, optimism } from 'viem/chains';
 import { getWalletClient, switchChain } from '@wagmi/core';
 import { wagmiConfig } from './wagmi';
+import { TIDAL_CHAINS, type ChainToken } from './chains';
 
 // Initialize Li.Fi SDK with wagmi providers
 let isConfigured = false;
@@ -50,8 +51,8 @@ if (typeof window === 'undefined') {
   });
 }
 
-// Supported chains for Tidal
-export const SUPPORTED_CHAINS = [base.id, baseSepolia.id];
+// Supported chains for Tidal (execution-capable)
+export const SUPPORTED_CHAINS = [base.id, arbitrum.id, optimism.id, baseSepolia.id];
 
 // Common tokens on Base
 export const BASE_TOKENS = {
@@ -318,6 +319,21 @@ export function describeRoute(route: Route): string {
     : '';
 
   return `${descriptions.join(' → ')} (${[totalGas, duration].filter(Boolean).join(', ')})`;
+}
+
+/**
+ * Get token info for a chain — reads from TIDAL_CHAINS registry.
+ * Falls back to BASE_TOKENS for backward compatibility.
+ */
+export function getChainTokens(chainId: number): Record<string, ChainToken & { chainId: number }> {
+  const chainConfig = TIDAL_CHAINS[chainId];
+  if (!chainConfig) return {};
+  return Object.fromEntries(
+    Object.entries(chainConfig.tokens).map(([symbol, token]) => [
+      symbol,
+      { ...token, chainId },
+    ])
+  );
 }
 
 // Re-export types for use in other files

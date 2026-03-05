@@ -3,7 +3,7 @@
 import { PrivyProvider as PrivyAuthProvider } from '@privy-io/react-auth';
 import { WagmiProvider } from '@privy-io/wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { base, baseSepolia } from 'viem/chains';
+import { base, baseSepolia, arbitrum, optimism } from 'viem/chains';
 import { useState } from 'react';
 import { wagmiConfig } from '@/lib/wagmi';
 
@@ -40,7 +40,7 @@ export function PrivyProvider({ children }: { children: React.ReactNode }) {
 
         // Default chain - Base Mainnet for demo
         defaultChain: base,
-        supportedChains: [base, baseSepolia],
+        supportedChains: [base, arbitrum, optimism, baseSepolia],
       }}
     >
       <QueryClientProvider client={queryClient}>
