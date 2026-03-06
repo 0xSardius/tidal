@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
 import { sessions } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | null = null;
@@ -88,13 +88,17 @@ export async function POST(req: Request) {
         .catch((err) => console.error('Session tracking error:', err));
     }
 
-    // Try to connect Li.Fi MCP server for additional tools
+    // Try to connect Li.Fi MCP server for additional tools (5s timeout to avoid eating function budget)
     let allTools = { ...tidalTools } as Record<string, unknown>;
     let mcpAvailable = false;
     try {
-      mcpClient = await createMCPClient({
+      const mcpPromise = createMCPClient({
         transport: { type: 'sse', url: 'https://mcp.li.quest/sse' },
       });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('MCP connection timed out after 5s')), 5000)
+      );
+      mcpClient = await Promise.race([mcpPromise, timeoutPromise]);
       const mcpTools = await mcpClient.tools();
       allTools = { ...tidalTools, ...mcpTools };
       mcpAvailable = true;
