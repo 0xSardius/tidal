@@ -297,6 +297,7 @@ export function ChatPanelContent() {
                           bridgeCost={result.bridgeCost as string | undefined}
                           estimatedTime={result.estimatedTime as string | undefined}
                           breakEvenDays={result.breakEvenDays as number | undefined}
+                          toolUsed={result.toolUsed as string | undefined}
                           // Vault-specific props
                           vaultSlug={result.vaultSlug as string | undefined}
                           vaultName={result.vaultName as string | undefined}

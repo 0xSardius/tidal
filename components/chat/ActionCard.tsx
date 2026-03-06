@@ -60,6 +60,7 @@ interface ActionCardProps {
   bridgeCost?: string;
   estimatedTime?: string;
   breakEvenDays?: number;
+  toolUsed?: string;
   // Vault-specific props
   vaultSlug?: string;
   vaultName?: string;
@@ -113,6 +114,7 @@ export function ActionCard({
   bridgeCost,
   estimatedTime,
   breakEvenDays,
+  toolUsed,
   vaultSlug,
   vaultName,
   curator,
@@ -401,6 +403,23 @@ export function ActionCard({
         // Step 2: Supply to AAVE on destination chain
         setComboStep(2);
         setStatus('pending');
+        setStatusMessage(`Step 2/2: Checking gas on ${toChain || chainIdToName(toChainId)}...`);
+
+        // Check destination chain gas balance before attempting supply
+        try {
+          const { createPublicClient: createPC, http: httpTransport } = await import('viem');
+          const destPC = createPC({ chain: { id: toChainId, name: 'dest', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [] } } }, transport: httpTransport() });
+          const destBalance = await destPC.getBalance({ address });
+          const MIN_GAS_WEI = BigInt(100_000_000_000_000); // 0.0001 ETH (~$0.25)
+          if (destBalance < MIN_GAS_WEI) {
+            const destChainName = toChain || chainIdToName(toChainId);
+            throw new Error(`Insufficient ETH for gas on ${destChainName}. You need at least 0.0001 ETH to execute the deposit. Please fund your wallet on ${destChainName} first.`);
+          }
+        } catch (gasErr) {
+          if (gasErr instanceof Error && gasErr.message.includes('Insufficient ETH')) throw gasErr;
+          console.warn('Gas check failed, proceeding anyway:', gasErr);
+        }
+
         setStatusMessage(`Step 2/2: Supplying to AAVE on ${toChain || chainIdToName(toChainId)}...`);
 
         // Get wallet client for destination chain
@@ -947,8 +966,10 @@ export function ActionCard({
             </div>
             <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
               <span className="text-[10px] text-slate-600">
+                {toolUsed && toolUsed !== 'Unknown' && `Bridge: ${toolUsed}`}
+                {toolUsed && toolUsed !== 'Unknown' && bridgeCost && ' · '}
                 {bridgeCost && `Cost: ${bridgeCost}`}
-                {bridgeCost && estimatedTime && ' · '}
+                {(bridgeCost || (toolUsed && toolUsed !== 'Unknown')) && estimatedTime && ' · '}
                 {estimatedTime && `Time: ${estimatedTime}`}
                 {breakEvenDays !== undefined && breakEvenDays > 0 && ` · Break-even: ~${breakEvenDays}d`}
               </span>
