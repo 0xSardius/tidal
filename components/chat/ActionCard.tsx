@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAccount, usePublicClient, useSwitchChain } from 'wagmi';
 import { useQueryClient } from '@tanstack/react-query';
 import { getWalletClient } from '@wagmi/core';
@@ -157,6 +157,12 @@ export function ActionCard({
   const [comboStep, setComboStep] = useState<ComboStep>(0);
   const [createdAt] = useState(() => Date.now());
 
+  // Bridge timeout detection
+  const BRIDGE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+  const bridgeStartRef = useRef<number | null>(null);
+  const [bridgeElapsed, setBridgeElapsed] = useState(0);
+  const isBridgeDelayed = bridgeElapsed >= BRIDGE_TIMEOUT_MS;
+
   const isWrongChain = chain?.id !== sourceChainId;
   const isStale = Date.now() - createdAt > MAX_CARD_AGE_MS;
   const isCrossChain = action === 'bridge' || action === 'cross_chain_yield';
@@ -169,6 +175,25 @@ export function ActionCard({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoExecute, status, isConnected, isStale]);
+
+  // Track bridge elapsed time for timeout detection
+  useEffect(() => {
+    if (isCrossChain && status === 'executing' && !bridgeStartRef.current) {
+      bridgeStartRef.current = Date.now();
+    }
+    if (status === 'completed' || status === 'failed' || status === 'idle') {
+      bridgeStartRef.current = null;
+      setBridgeElapsed(0);
+    }
+  }, [isCrossChain, status]);
+
+  useEffect(() => {
+    if (!bridgeStartRef.current || !isCrossChain) return;
+    const interval = setInterval(() => {
+      setBridgeElapsed(Date.now() - (bridgeStartRef.current || Date.now()));
+    }, 5000); // update every 5s
+    return () => clearInterval(interval);
+  }, [isCrossChain, status]);
 
   const handleApprove = async () => {
     if (!isConnected || !address) {
@@ -1091,6 +1116,21 @@ export function ActionCard({
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
             {statusMessage}
+          </div>
+        )}
+
+        {/* Bridge delay warning */}
+        {isBridgeDelayed && isProcessing && (
+          <div className="flex items-start gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+            <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div>
+              <p className="font-medium">Bridge may be delayed</p>
+              <p className="text-amber-400/70 mt-0.5">
+                This bridge has been running for {Math.floor(bridgeElapsed / 60000)} min. Cross-chain transfers can sometimes take longer during network congestion. Your funds are safe.
+              </p>
+            </div>
           </div>
         )}
 
