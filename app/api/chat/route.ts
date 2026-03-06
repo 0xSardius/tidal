@@ -90,16 +90,23 @@ export async function POST(req: Request) {
 
     // Try to connect Li.Fi MCP server for additional tools
     let allTools = { ...tidalTools } as Record<string, unknown>;
+    let mcpAvailable = false;
     try {
       mcpClient = await createMCPClient({
         transport: { type: 'sse', url: 'https://mcp.li.quest/sse' },
       });
       const mcpTools = await mcpClient.tools();
       allTools = { ...tidalTools, ...mcpTools };
+      mcpAvailable = true;
       console.log('Li.Fi MCP tools loaded:', Object.keys(mcpTools).length);
     } catch (err) {
       console.warn('Li.Fi MCP server unavailable, using tidal tools only:', err instanceof Error ? err.message : err);
     }
+
+    // Tell the agent about MCP tool availability
+    const mcpNote = mcpAvailable
+      ? '\n\nLi.Fi MCP tools are available — you have access to additional Li.Fi-specific tools beyond the built-in Tidal tools.'
+      : '\n\nLi.Fi MCP tools are currently unavailable. Use the built-in Tidal tools (getQuote, prepareSwap, prepareBridge, prepareCrossChainYield) for all swap and bridge operations. Do not mention MCP tools to the user.';
 
     // Convert UI messages to model messages (async function!)
     const modelMessages = await convertToModelMessages(messages);
@@ -107,7 +114,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model: anthropic('claude-sonnet-4-20250514'),
-      system: systemPrompt + walletInfo,
+      system: systemPrompt + walletInfo + mcpNote,
       messages: modelMessages,
       tools: allTools as typeof tidalTools,
       stopWhen: stepCountIs(5),
