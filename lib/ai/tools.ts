@@ -115,7 +115,7 @@ export const getAaveRatesTool = tool({
     const { tokens } = input;
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
       const response = await fetch(`${baseUrl}/api/aave/rates`);
       const data = await response.json();
 
@@ -166,7 +166,7 @@ export const prepareSupplyTool = tool({
     // Fetch real APY from API
     let apy = token === 'USDC' ? 3.5 : 2.1; // Fallback
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
       const response = await fetch(`${baseUrl}/api/aave/rates`);
       const data = await response.json();
       if (data.success && data.rates?.[token]?.apy) {
@@ -334,7 +334,7 @@ export const prepareSwapAndSupplyTool = tool({
     // Fetch real APY for the supply step
     let apy = toToken === 'USDC' ? 3.5 : 2.1;
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
       const response = await fetch(`${baseUrl}/api/aave/rates`);
       const data = await response.json();
       if (data.success && data.rates?.[toToken]?.apy) {
@@ -536,7 +536,7 @@ export const prepareCrossChainYieldTool = tool({
     // Fetch destination chain AAVE APY
     let destApy = token === 'USDC' ? 4.0 : 2.5;
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
       const response = await fetch(`${baseUrl}/api/yields?token=${token}&chains=${toChain}&maxRisk=1&limit=5`);
       const data = await response.json();
       if (data.success && data.opportunities?.length) {
@@ -637,7 +637,7 @@ export const scanYieldsTool = tool({
     const { token, maxRisk = 2, limit = 5, chains } = input;
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
       const params = new URLSearchParams();
       if (token) params.set('token', token);
       params.set('maxRisk', maxRisk.toString());
@@ -729,7 +729,7 @@ export const prepareVaultDepositTool = tool({
     // Fetch live APY from DeFi Llama for this vault's protocol
     let apy: number | null = null;
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
       const response = await fetch(
         `${baseUrl}/api/yields?token=${vault.underlyingToken}&maxRisk=3&limit=20`
       );
