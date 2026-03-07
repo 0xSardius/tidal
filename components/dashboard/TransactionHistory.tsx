@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
 
 interface Transaction {
@@ -66,6 +67,7 @@ function groupByDate(txs: Transaction[]): Record<string, Transaction[]> {
 const PAGE_SIZE = 20;
 
 export function TransactionHistory() {
+  const router = useRouter();
   const { address, isConnected } = useAccount();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,8 +127,20 @@ export function TransactionHistory() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex-shrink-0 px-6 py-4 border-b border-white/5">
-        <h2 className="font-semibold text-slate-200">Transaction Log</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Your on-chain activity history</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="p-1.5 rounded-lg hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div>
+            <h2 className="font-semibold text-slate-200">Transaction Log</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Your on-chain activity history</p>
+          </div>
+        </div>
       </div>
 
       {/* Transaction List */}

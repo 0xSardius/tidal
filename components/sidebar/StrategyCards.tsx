@@ -65,29 +65,54 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
   const currentDepth = riskDepth || 'shallows';
 
   useEffect(() => {
-    // Wait until riskDepth is loaded from localStorage to avoid
-    // firing with the wrong depth and then re-firing
     if (!isLoaded) return;
 
-    // Reset loading state when depth changes
     setIsLoading(true);
     setEntries([]);
 
     async function buildSidebar() {
       try {
         const result: SidebarEntry[] = [];
+        const maxRisk = currentDepth === 'shallows' ? 1 : currentDepth === 'mid-depth' ? 2 : 3;
+
+        // Fetch live yields from DeFi Llama for dynamic APY
+        let liveYields: DeFiLlamaOpp[] = [];
+        try {
+          const res = await fetch(`/api/yields?maxRisk=${maxRisk}&limit=50`);
+          const data = await res.json();
+          if (data.success && data.opportunities) {
+            liveYields = data.opportunities as DeFiLlamaOpp[];
+          }
+        } catch {
+          // Fall back to static data
+        }
+
+        // Helper: find live APY for a vault by matching protocol + token
+        const findLiveApy = (protocol: string, token: string): number | null => {
+          const match = liveYields.find(
+            (y) => y.protocol === protocol && y.symbol.includes(token)
+          );
+          return match ? match.apy : null;
+        };
 
         if (currentDepth === 'shallows') {
-          // === SHALLOWS: AAVE + conservative Morpho vaults ===
-          let aaveApy: number | null = null;
-          try {
-            const res = await fetch(`/api/aave/rates`);
-            const data = await res.json();
-            if (data.success && data.rates?.USDC?.apy) {
-              aaveApy = data.rates.USDC.apy;
+          // === SHALLOWS: AAVE + conservative vaults ===
+          // Get AAVE APY from live yields or dedicated endpoint
+          const aaveMatch = liveYields.find(
+            (y) => y.protocol === 'aave-v3' && y.symbol.includes('USDC') && y.chain === 'Base'
+          );
+          let aaveApy: number | null = aaveMatch?.apy ?? null;
+
+          if (!aaveApy) {
+            try {
+              const res = await fetch(`/api/aave/rates`);
+              const data = await res.json();
+              if (data.success && data.rates?.USDC?.apy) {
+                aaveApy = data.rates.USDC.apy;
+              }
+            } catch {
+              aaveApy = 3.5;
             }
-          } catch {
-            aaveApy = 3.5;
           }
 
           result.push({
@@ -100,17 +125,18 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
             type: 'aave',
           });
 
-          // Add Shallows vaults from registry
+          // Add Shallows vaults with live APY
           const { VAULT_REGISTRY } = await import('@/lib/vault-registry');
           for (const [slug, vault] of Object.entries(VAULT_REGISTRY)) {
             if (vault.riskLevel === 1) {
               const style = vault.protocol === 'yo' ? STYLES.yo : STYLES.morpho;
+              const liveApy = findLiveApy(vault.protocol, vault.underlyingToken);
               result.push({
                 id: slug,
                 name: vault.name,
                 subtitle: `${vault.curator} · ${vault.underlyingToken}`,
                 token: vault.underlyingToken,
-                apy: vault.apyEstimate,
+                apy: liveApy ?? vault.apyEstimate,
                 ...style,
                 type: 'vault',
                 vaultSlug: slug,
@@ -119,9 +145,6 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
           }
         } else {
           // === MID-DEPTH / DEEP WATER: Executable vaults + discovery ===
-          const maxRisk = currentDepth === 'mid-depth' ? 2 : 3;
-
-          // Add Mid-Depth+ vaults from registry
           const { VAULT_REGISTRY } = await import('@/lib/vault-registry');
           for (const [slug, vault] of Object.entries(VAULT_REGISTRY)) {
             if (vault.riskLevel === 2) {
@@ -130,13 +153,14 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                                vault.description.toLowerCase().includes('extra') ||
                                vault.description.toLowerCase().includes('seam');
               const style = vault.protocol === 'yo' ? STYLES.yo : STYLES.morpho;
+              const liveApy = findLiveApy(vault.protocol, vault.underlyingToken);
 
               result.push({
                 id: slug,
                 name: vault.name,
                 subtitle: `${vault.curator} · ${vault.underlyingToken}`,
                 token: vault.underlyingToken,
-                apy: vault.apyEstimate,
+                apy: liveApy ?? vault.apyEstimate,
                 badge: hasRewards ? 'rewards' : undefined,
                 ...style,
                 type: 'vault',
@@ -145,49 +169,48 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
             }
           }
 
-          // Fetch high-yield discovery items from DeFi Llama (Deep Water only)
-          if (currentDepth === 'deep-water') try {
-            const res = await fetch(`/api/yields?maxRisk=3&limit=50`);
-            const data = await res.json();
-            if (data.success && data.opportunities) {
-              // Get non-executable protocols with meaningful APY
-              const discoveries = (data.opportunities as DeFiLlamaOpp[])
-                .filter(o =>
-                  !EXECUTABLE_PROTOCOLS.includes(o.protocol) &&
-                  o.apy >= 3 &&
-                  o.tvlUsd >= 100_000
-                );
+          // Fetch discovery items from DeFi Llama (Mid-Depth + Deep Water)
+          // Include cross-chain opportunities
+          try {
+            // Get non-executable protocols with meaningful APY
+            const discoveries = liveYields
+              .filter(o =>
+                !EXECUTABLE_PROTOCOLS.includes(o.protocol) &&
+                o.apy >= 3 &&
+                o.tvlUsd >= 100_000
+              );
 
-              // Deduplicate by protocol, keep highest APY
-              const byProtocol = new Map<string, DeFiLlamaOpp>();
-              for (const opp of discoveries) {
-                const existing = byProtocol.get(opp.protocol);
-                if (!existing || opp.apy > existing.apy) {
-                  byProtocol.set(opp.protocol, opp);
-                }
+            // Deduplicate by protocol+chain, keep highest APY
+            const byKey = new Map<string, DeFiLlamaOpp>();
+            for (const opp of discoveries) {
+              const key = `${opp.protocol}-${opp.chain}`;
+              const existing = byKey.get(key);
+              if (!existing || opp.apy > existing.apy) {
+                byKey.set(key, opp);
               }
+            }
 
-              // Take top 4 discovery protocols
-              const topDiscoveries = Array.from(byProtocol.values())
-                .sort((a, b) => b.apy - a.apy)
-                .slice(0, 4);
+            // Take top discoveries (more for deep water)
+            const discoveryLimit = currentDepth === 'deep-water' ? 6 : 4;
+            const topDiscoveries = Array.from(byKey.values())
+              .sort((a, b) => b.apy - a.apy)
+              .slice(0, discoveryLimit);
 
-              for (const opp of topDiscoveries) {
-                const meta = PROTOCOL_NAMES[opp.protocol];
-                result.push({
-                  id: opp.id,
-                  name: meta?.name || opp.protocol.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-                  subtitle: `${opp.symbol} · Scouted by Tidal`,
-                  token: opp.symbol,
-                  apy: opp.apy,
-                  badge: 'scouted',
-                  color: STYLES.discovery.color,
-                  icon: meta?.icon || '🔭',
-                  type: 'discovery',
-                  protocol: opp.protocol,
-                  chain: opp.chain,
-                });
-              }
+            for (const opp of topDiscoveries) {
+              const meta = PROTOCOL_NAMES[opp.protocol];
+              result.push({
+                id: `${opp.id}-${opp.chain}`,
+                name: meta?.name || opp.protocol.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                subtitle: `${opp.symbol} · ${opp.chain}`,
+                token: opp.symbol,
+                apy: opp.apy,
+                badge: 'scouted',
+                color: STYLES.discovery.color,
+                icon: meta?.icon || '🔭',
+                type: 'discovery',
+                protocol: opp.protocol,
+                chain: opp.chain,
+              });
             }
           } catch {
             // Discovery items are optional
@@ -198,7 +221,6 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
         result.sort((a, b) => {
           if (a.type === 'aave') return -1;
           if (b.type === 'aave') return 1;
-          // Executable vaults above discovery
           if (a.type === 'vault' && b.type === 'discovery') return -1;
           if (a.type === 'discovery' && b.type === 'vault') return 1;
           return (b.apy || 0) - (a.apy || 0);
@@ -220,6 +242,8 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
         onStrategyClick(`I'd like to earn yield on USDC with AAVE. What's the current rate?`);
       } else if (entry.type === 'vault') {
         onStrategyClick(`I'd like to deposit into the ${entry.name} vault. Tell me about it.`);
+      } else if (entry.chain && entry.chain !== 'Base') {
+        onStrategyClick(`Tell me about the ${entry.token} yield on ${entry.name} on ${entry.chain} at ${entry.apy?.toFixed(1)}% APY. Can I bridge my funds there?`);
       } else {
         onStrategyClick(`Tell me about the ${entry.token} yield on ${entry.name} at ${entry.apy?.toFixed(1)}% APY. What are the risks?`);
       }
@@ -270,7 +294,7 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                         <div className="min-w-0">
                           <div className="text-xs font-medium text-slate-200 truncate flex items-center gap-1">
                             {entry.name}
-                            {entry.chain && entry.chain !== 'Base' && (
+                            {entry.chain && (
                               <span className="px-1 py-px rounded bg-slate-700/50 text-[9px] text-slate-400 font-normal">{entry.chain}</span>
                             )}
                           </div>
@@ -290,7 +314,7 @@ export function StrategyCards({ onStrategyClick }: StrategyCardsProps) {
                 ))}
               </div>
               <p className="text-[9px] text-amber-500/40 text-center mt-1 mb-2">
-                Click to ask Tidal about risks & strategy
+                Click to ask Tidal about risks &amp; strategy
               </p>
             </>
           )}
