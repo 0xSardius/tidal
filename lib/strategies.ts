@@ -20,7 +20,7 @@ export type SupportedToken = 'USDC' | 'DAI' | 'ETH' | 'WETH';
 export interface YieldStrategy {
   id: string;
   name: string;
-  protocol: 'AAVE' | 'Yearn' | 'Compound';
+  protocol: string;
   type: StrategyType;
   riskLevel: 1 | 2 | 3; // Maps to Shallows (1), Mid-Depth (2), Deep Water (3)
   acceptedTokens: SupportedToken[];
@@ -32,6 +32,9 @@ export interface YieldStrategy {
 
 /**
  * All available yield strategies
+ *
+ * Includes AAVE direct lending + ERC-4626 vaults from vault-registry.
+ * The AI agent uses this list to know what deposit options exist per risk tier.
  */
 export const YIELD_STRATEGIES: YieldStrategy[] = [
   // === SHALLOWS (Risk Level 1) - Stablecoin Lending ===
@@ -55,8 +58,28 @@ export const YIELD_STRATEGIES: YieldStrategy[] = [
     targetToken: 'DAI',
     description: 'Supply DAI to AAVE for stable yield. Decentralized stablecoin option.',
   },
+  {
+    id: 'steakhouse-prime-usdc',
+    name: 'Steakhouse Prime USDC (Morpho)',
+    protocol: 'Morpho',
+    type: 'stablecoin-lending',
+    riskLevel: 1,
+    acceptedTokens: ['USDC'],
+    targetToken: 'USDC',
+    description: 'Institutional-grade Morpho vault curated by Steakhouse Financial. ~$440M TVL.',
+  },
+  {
+    id: 'gauntlet-usdc-prime',
+    name: 'Gauntlet USDC Prime (Morpho)',
+    protocol: 'Morpho',
+    type: 'stablecoin-lending',
+    riskLevel: 1,
+    acceptedTokens: ['USDC'],
+    targetToken: 'USDC',
+    description: 'Risk-optimized Morpho vault curated by Gauntlet. Blue-chip collateral only. ~$296M TVL.',
+  },
 
-  // === MID-DEPTH (Risk Level 2) - Single Asset Lending ===
+  // === MID-DEPTH (Risk Level 2) - Single Asset + Vaults ===
   {
     id: 'aave-eth',
     name: 'AAVE ETH Lending',
@@ -67,14 +90,63 @@ export const YIELD_STRATEGIES: YieldStrategy[] = [
     targetToken: 'WETH',
     description: 'Supply ETH to AAVE. Higher volatility but potential for appreciation.',
   },
+  {
+    id: 'yo-usdc',
+    name: 'YO yoUSD (Yield Optimizer)',
+    protocol: 'YO',
+    type: 'stablecoin-lending',
+    riskLevel: 2,
+    acceptedTokens: ['USDC'],
+    targetToken: 'USDC',
+    description: 'Auto-rebalancing yield optimizer across top lending protocols. Coinbase Ventures backed. ~8.6% APY.',
+  },
+  {
+    id: 'yo-eth',
+    name: 'YO yoETH (Yield Optimizer)',
+    protocol: 'YO',
+    type: 'single-asset-lending',
+    riskLevel: 2,
+    acceptedTokens: ['ETH', 'WETH'],
+    targetToken: 'WETH',
+    description: 'Auto-rebalancing ETH yield optimizer. Coinbase Ventures backed. ~4.8% APY.',
+  },
+  {
+    id: 'moonwell-flagship-usdc',
+    name: 'Moonwell Flagship USDC (Morpho)',
+    protocol: 'Morpho',
+    type: 'stablecoin-lending',
+    riskLevel: 2,
+    acceptedTokens: ['USDC'],
+    targetToken: 'USDC',
+    description: 'Reward-boosted USDC vault with WELL token incentives. ~$15M TVL.',
+  },
+  {
+    id: 'seamless-usdc',
+    name: 'Seamless USDC Vault (Morpho)',
+    protocol: 'Morpho',
+    type: 'stablecoin-lending',
+    riskLevel: 2,
+    acceptedTokens: ['USDC'],
+    targetToken: 'USDC',
+    description: 'Seamless Protocol USDC vault with SEAM rewards. ~$23M TVL.',
+  },
+  {
+    id: 'moonwell-flagship-eth',
+    name: 'Moonwell Flagship ETH (Morpho)',
+    protocol: 'Morpho',
+    type: 'single-asset-lending',
+    riskLevel: 2,
+    acceptedTokens: ['ETH', 'WETH'],
+    targetToken: 'WETH',
+    description: 'ETH vault with WELL token rewards. Earn yield on ETH holdings. ~$13.2M TVL.',
+  },
 
   // === DEEP WATER (Risk Level 3) - Complex Strategies ===
-  // For MVP, we'll use multi-step combos that combine Li.Fi + AAVE
   {
     id: 'eth-to-stable-yield',
-    name: 'ETH → Stablecoin Yield',
-    protocol: 'AAVE',
-    type: 'stablecoin-lending', // End result is stablecoin lending
+    name: 'ETH to Stablecoin Yield',
+    protocol: 'AAVE + Li.Fi',
+    type: 'stablecoin-lending',
     riskLevel: 3,
     acceptedTokens: ['ETH', 'WETH'],
     targetToken: 'USDC',
