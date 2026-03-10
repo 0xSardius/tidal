@@ -22,6 +22,9 @@ Tidal is an AI-powered DeFi yield advisor that makes Solana DeFi accessible, saf
 - No consumer-grade AI yield advisor exists on Solana today
 - 20M+ Phantom users = massive addressable market already on-chain
 
+### Product Philosophy
+**Help consumers use DeFi as easily and seamlessly as possible — no wallet juggling, no protocol hopping, no jargon.** The user says what they want ("I want to earn yield on my USDC"), and Tidal handles everything: finding the best rate, explaining the risks, and executing the transaction.
+
 ### Core Value Proposition
 - **For Solana users** who want to earn yield but find DeFi protocols overwhelming
 - **Tidal** eliminates complexity with an AI that explains every action, personalizes by risk, and executes transactions
@@ -63,7 +66,7 @@ Tidal is an AI-powered DeFi yield advisor that makes Solana DeFi accessible, saf
 
 | Tier | Name | Solana Strategies | Target APY | Protocols |
 |------|------|-------------------|-----------|-----------|
-| 1 | **Shallows** | Liquid staking, stablecoin lending | 4-8% | JitoSOL, Sanctum INF, Kamino USDC |
+| 1 | **Shallows** | Liquid staking, stablecoin lending | 4-8% | JitoSOL, Kamino USDC, Jupiter Lend USDC |
 | 2 | **Mid-Depth** | Single-asset lending, curated vaults | 8-15% | Kamino Earn Vaults, Jupiter Lend, Drift lending |
 | 3 | **Deep Water** | Leveraged yield, LP positions | 15%+ | Jupiter Multiply, Kamino LP (Orca), Drift perp funding |
 
@@ -138,91 +141,107 @@ app/api/
 
 ### Phase 1: Solana Foundation (MVP — 3-4 weeks)
 
+**Product philosophy**: Help consumers use DeFi as easily and seamlessly as possible. No wallet juggling, no protocol hopping, no jargon. The user says what they want, the AI handles the rest.
+
 **F1: Solana Wallet Connection**
 - Connect Phantom, Backpack, or Privy embedded wallet
+- Email/social login creates an embedded Solana wallet automatically (zero friction)
 - Display SOL, USDC, and major token balances
-- Show current staking positions if any
+- Show current staking/lending positions if any
 
-**F2: JitoSOL Staking (Shallows)**
+**F2: JitoSOL Staking (Shallows — SOL holders)**
 - Stake SOL → receive JitoSOL (~5.9% APY)
 - Unstake JitoSOL → receive SOL
 - Display position value and earned rewards
-- AI explains MEV tips and staking mechanics
+- AI explains MEV tips and staking mechanics in plain English
 
-**F3: Kamino USDC Lending (Shallows)**
+**F3: Kamino USDC Lending (Shallows — stablecoin holders)**
 - Supply USDC to Kamino Lend
 - Withdraw USDC + interest
 - Read live APY from Kamino
-- AI compares Kamino rate vs alternatives
+- AI compares Kamino rate vs Jupiter Lend in real-time
 
-**F4: Jupiter Swap Integration**
-- Swap any Solana token via Jupiter
-- AI uses this when user has the wrong token for a strategy
+**F4: Jupiter Lend USDC (Shallows — stablecoin holders)**
+- Supply USDC to Jupiter Lend vaults
+- Withdraw USDC + interest
+- Read live APY from Jupiter Lend
+- AI compares vs Kamino and recommends the better rate
+- Example: "Kamino is at 4.2%, but Jupiter Lend has 5.8% right now. Both are solid for your risk level. Want me to go with Jupiter Lend?"
+
+**F5: Jupiter Swap Integration**
+- Swap any Solana token via Jupiter Ultra API
+- AI uses this automatically when user has the wrong token for a strategy
+- "You have SOL but want stablecoin yield. I'll swap to USDC first, then deposit."
 - Route display showing path and rate
 
-**F5: AI Tools (Solana)**
+**F6: AI Tools (Solana)**
 - `stakeSOL` — Prepare JitoSOL staking transaction
-- `lendUSDC` — Prepare Kamino supply transaction
+- `lendUSDC` — Prepare Kamino OR Jupiter Lend supply transaction (AI picks the better rate)
+- `withdrawLend` — Withdraw from either lending protocol
 - `swapToken` — Prepare Jupiter swap
 - `scanSolanaYields` — Scan DeFi Llama for Solana opportunities
 - `getSolanaRates` — Live APY from on-chain protocol reads
+- `compareYields` — Side-by-side comparison of stablecoin yield options
 
-**F6: Risk-Tiered Recommendations**
+**F7: Risk-Tiered Recommendations**
 - Reuse risk depth selection UI from v1
 - AI filters strategies by tier
-- Shallows users only see staking + stablecoin lending
+- Shallows users see: JitoSOL staking + Kamino/Jupiter Lend stablecoin yield
 - Explain risk in plain English before every action
+- "This is a Shallows-safe strategy. Your USDC stays as USDC — you earn interest, and you can withdraw anytime."
 
-### Phase 2: Protocol Expansion (3 weeks)
+### Phase 2: Protocol Expansion + Differentiation (3 weeks)
 
-**F7: Jupiter Lend**
-- Supply/withdraw across Jupiter Lend markets
-- Compare rates vs Kamino in AI recommendations
-
-**F8: Kamino Curated Earn Vaults**
+**F8: Kamino Curated Earn Vaults (Mid-Depth)**
 - Deposit into Gauntlet/Steakhouse curated vaults
-- Higher yields than base lending (Mid-Depth tier)
+- Higher yields than base lending
+- AI explains the risk tradeoff vs base Kamino lending
 
 **F9: Sanctum INF Staking**
 - Stake via Sanctum for best-in-class LST APY (~6.4%)
 - AI recommends JitoSOL vs INF vs mSOL based on current rates
 
-**F10: Transaction Explanation Engine**
+**F10: Drift Lending (Mid-Depth)**
+- Supply USDC/SOL to Drift's money market
+- Integrated with Drift's cross-margin system
+- AI surfaces when Drift rates beat Kamino/Jupiter
+
+**F11: Transaction Explanation Engine**
 - Before every signature, show plain-English breakdown of what the transaction does
 - Flag unusual patterns (high slippage, unknown programs, excessive token approvals)
 - "This transaction will stake 10 SOL with Jito and give you 9.83 JitoSOL in return. You can unstake anytime."
 
-**F11: Protocol Risk Scoring**
+**F12: Protocol Risk Scoring**
 - Display per-protocol: audit status, TVL trend, age, exploit history
 - AI references these in recommendations: "Kamino has been audited by OtterSec and Kudelski, $3B TVL, no exploits."
 
 ### Phase 3: Intelligence + Differentiation (3 weeks)
 
-**F12: Auto-Rebalancing**
+**F13: Auto-Rebalancing**
 - Monitor yield rates on a schedule (Vercel Cron)
 - Alert user when a better opportunity appears
 - Autopilot mode: auto-execute rebalance if delta > threshold
 - "Kamino USDC dropped to 3.1%, Jupiter Lend is offering 5.8%. Want me to move your funds?"
 
-**F13: Portfolio View**
+**F14: Portfolio View**
 - Unified view of all Solana positions (staking, lending, LP)
 - Show total yield earned, current APY, allocation breakdown
 - Historical performance chart
 
-**F14: DeFi Education Mode**
+**F15: DeFi Education Mode**
 - Contextual explanations triggered by user questions
 - "What is impermanent loss?" → AI explains with user's actual positions as examples
 - Progressive learning: track what concepts user has been exposed to
 
 ### Phase 4: Agent Infrastructure + Monetization (4 weeks)
 
-**F15: Lucid Agents + x402 API**
+**F16: Lucid Agents + x402 API**
 - Expose Tidal's yield intelligence as a paid API
 - Other AI agents pay per-call to scan Solana yields, get recommendations, or prepare transactions
 - Pricing: $0.01/yield scan, $0.05/recommendation, $0.10/tx preparation
 - Revenue dashboard for tracking agent API income
 
-**F16: Points System**
+**F17: Points System**
 - Points per action: staking (10), lending (15), vault deposit (25), rebalance (50)
 - Streak multiplier for weekly activity
 - Leaderboard (pseudonymous, wallet-based)

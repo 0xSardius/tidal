@@ -43,7 +43,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Deployed on Vercel
 
 ### What's Next (Solana — Active)
-- Phase 1: Solana wallet + JitoSOL staking + Kamino USDC lending + Jupiter swaps
+- Phase 1: Solana wallet + JitoSOL staking + Kamino USDC lending + Jupiter Lend USDC + Jupiter swaps
 - Phase 2: Jupiter Lend + Kamino Earn Vaults + Sanctum INF + tx explanation engine
 - Phase 3: Auto-rebalancing + portfolio view + education mode
 - Phase 4: Lucid Agents x402 API + points system
@@ -123,7 +123,7 @@ lib/
 
 | Tier | Strategies | Target APY | Protocols |
 |------|-----------|-----------|-----------|
-| Shallows | Liquid staking, stablecoin lending | 4-8% | JitoSOL, Sanctum INF, Kamino USDC |
+| Shallows | Liquid staking, stablecoin lending | 4-8% | JitoSOL, Kamino USDC, Jupiter Lend USDC |
 | Mid-Depth | Single-asset lending, curated vaults | 8-15% | Kamino Earn Vaults, Jupiter Lend, Drift lending |
 | Deep Water | Leveraged yield, LP positions | 15%+ | Jupiter Multiply, Kamino LP (Orca), Drift perp funding |
 
