@@ -1,9 +1,10 @@
 # Tidal: Solana-First Consumer DeFi Product
 
-**Version:** 2.0
+**Version:** 2.1
 **Date:** March 9, 2026
 **Status:** Active — replaces v1 hackathon PRD
 **Transition:** EVM hackathon prototype (Base) → Solana-first consumer product
+**Team:** 0xSardius (engineering) + 0xJulo (design engineering)
 
 ---
 
@@ -95,9 +96,9 @@ Dashboard updates, AI monitors for changes
 | Layer | Technology | Notes |
 |-------|-----------|-------|
 | Frontend | Next.js 16, React 19, Tailwind v4 | Reuse from v1 |
-| Auth/Wallet | Privy (embedded Solana wallet) OR Solana Wallet Adapter (Phantom, Backpack) | Decision: TBD — see Open Questions |
+| Auth/Wallet | Privy (embedded Solana wallet + external connectors) | Already integrated for EVM; add Solana via config. Supports Phantom/Backpack externally + embedded wallets for new users. |
 | AI Agent | Vercel AI SDK v6 + Claude | Reuse from v1, new Solana tools |
-| Swaps | Jupiter API (direct) | Li.Fi supports Jupiter via Li.Fi but direct is simpler for Solana-only |
+| Swaps | Jupiter Ultra API (direct) | 2-endpoint flow, no RPC needed (Beam relayer), 2-10 bps fees, same liquidity Li.Fi would use. Revenue: integrator fees (keep 80%). |
 | Lending | Kamino Lend, Jupiter Lend | Custom adapters (no ERC-4626 equivalent) |
 | Staking | Jito, Sanctum | LST minting + redemption |
 | Yield Data | DeFi Llama Yields API | Already scanning Solana (chain === "Solana") |
@@ -360,13 +361,18 @@ Phase 4: Infrastructure + Monetization
 
 ---
 
+## Decisions Made
+
+1. **Wallet**: Privy with `walletChainType: 'ethereum-and-solana'`. External connectors for Phantom/Backpack, embedded wallets for new users. Already integrated for EVM — Solana is a config change.
+2. **Swaps**: Jupiter Ultra API direct. 2 endpoints (`/order` → sign → `/execute`), no RPC needed (Beam relayer handles tx landing), 2-10 bps fees. Li.Fi only makes sense when we add cross-chain bridging later.
+3. **Team**: 0xSardius (engineering) + 0xJulo (design engineering).
+4. **Testing**: Mainnet with small amounts. Kamino/Jupiter/Jito don't have reliable devnet deployments.
+
 ## Open Questions
 
-1. **Wallet strategy**: Privy embedded Solana wallet (simpler onboarding, consistent with v1) vs standard Solana Wallet Adapter (Phantom/Backpack native, larger user base)?
-2. **Jupiter swaps**: Direct Jupiter API vs Li.Fi's Jupiter integration? Direct is simpler for Solana-only.
-3. **Colosseum timing**: When is the next hackathon cycle? This determines Phase 1 deadline.
-4. **Team**: Solo or looking for co-builders?
-5. **Solana devnet testing**: Kamino and Jupiter Lend may not have devnet deployments — need to verify or use mainnet fork.
+1. **Colosseum timing**: When is the next hackathon cycle? This determines Phase 1 deadline.
+2. **Jupiter API key**: Free tier (60 req/min) sufficient for launch? Or need Pro tier?
+3. **Integrator fees**: Should we add a fee on Jupiter swaps from day one? (Keep 80% of fee revenue.)
 
 ---
 

@@ -14,12 +14,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |-------|-------------|
 | `/ai-sdk-core` | Backend AI: streamText, tools, structured outputs |
 | `/ai-sdk-ui` | React chat: useChat hook, message parts, streaming |
-| `/solana-dev` | Solana client, RPC, transactions, wallet adapter |
+| `/solana-dev` | Solana client (@solana/kit), RPC, transactions, wallet-standard, Anchor, testing |
+| `/solana-anchor-claude-skill` | Anchor program development (Rust programs + TypeScript tests) |
 | `/frontend-design` | UI components, layouts, styling |
 | `/vercel-react-best-practices` | Performance patterns, Next.js optimization |
 | `/prompt-engineering-patterns` | Agent system prompts, tool definitions |
-| `/wagmi` | EVM wallet hooks (legacy, parked — see below) |
-| `/viem` | EVM blockchain ops (legacy, parked — see below) |
+| `/wagmi` | EVM wallet hooks (legacy, parked) |
+| `/viem` | EVM blockchain ops (legacy, parked) |
 
 ## Project Overview
 
@@ -53,9 +54,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Layer | Current (EVM) | Target (Solana) |
 |-------|--------------|-----------------|
 | Frontend | Next.js 16, React 19, Tailwind v4 | Same (reuse) |
-| Auth/Wallet | Privy + Coinbase Smart Wallet | Privy embedded Solana OR Solana Wallet Adapter |
+| Auth/Wallet | Privy + Coinbase Smart Wallet | Privy (embedded Solana + Phantom/Backpack external) |
 | AI Agent | Vercel AI SDK v6 + Claude | Same (reuse, new tools) |
-| Swaps | Li.Fi SDK | Jupiter API |
+| Swaps | Li.Fi SDK | Jupiter Ultra API (direct, 2-endpoint, no RPC needed) |
 | Lending | AAVE V3 | Kamino Lend, Jupiter Lend |
 | Staking | N/A | Jito, Sanctum |
 | Yield Data | DeFi Llama | Same (already scans Solana) |
