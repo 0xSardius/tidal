@@ -1,8 +1,7 @@
 import { streamText, convertToModelMessages, stepCountIs } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
-import { createMCPClient } from '@ai-sdk/mcp';
-import { tidalTools } from '@/lib/ai/tools';
-import { buildSystemPrompt } from '@/lib/ai/prompts';
+import { solanaTidalTools } from '@/lib/ai/tools-solana';
+import { buildSolanaSystemPrompt } from '@/lib/ai/prompts-solana';
 import { type RiskDepth } from '@/lib/constants';
 import { db } from '@/lib/db';
 import { sessions } from '@/lib/db/schema';
@@ -11,8 +10,6 @@ import { eq, sql } from 'drizzle-orm';
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  let mcpClient: Awaited<ReturnType<typeof createMCPClient>> | null = null;
-
   try {
     const body = await req.json();
     console.log('Received body:', JSON.stringify(body, null, 2));
@@ -27,22 +24,20 @@ export async function POST(req: Request) {
     const userContext = {
       riskDepth: (context?.riskDepth || 'shallows') as RiskDepth,
       walletConnected: context?.walletConnected ?? false,
+      walletAddress: context?.walletAddress,
       positions: context?.positions || [],
       autonomyMode: (context?.autonomyMode || 'supervised') as 'supervised' | 'autopilot',
     };
 
     const marketContext = {
       rates: context?.rates,
-      gasPrice: context?.gasPrice,
     };
 
-    const systemPrompt = buildSystemPrompt(userContext, marketContext);
+    const systemPrompt = buildSolanaSystemPrompt(userContext, marketContext);
 
     // Include wallet context in system prompt for tools
-    const chainName = context?.chainName || 'Base';
-    const chainId = context?.chainId || 8453;
     const walletInfo = context?.walletAddress
-      ? `\n\nUser wallet: ${context.walletAddress}\nChain: ${chainName} (chainId: ${chainId})`
+      ? `\n\nUser Solana wallet: ${context.walletAddress}`
       : '\n\nUser wallet: Not connected';
 
     // Track session in DB (fire-and-forget)
@@ -88,29 +83,8 @@ export async function POST(req: Request) {
         .catch((err) => console.error('Session tracking error:', err));
     }
 
-    // Try to connect Li.Fi MCP server for additional tools (5s timeout to avoid eating function budget)
-    let allTools = { ...tidalTools } as Record<string, unknown>;
-    let mcpAvailable = false;
-    try {
-      const mcpPromise = createMCPClient({
-        transport: { type: 'sse', url: 'https://mcp.li.quest/sse' },
-      });
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('MCP connection timed out after 5s')), 5000)
-      );
-      mcpClient = await Promise.race([mcpPromise, timeoutPromise]);
-      const mcpTools = await mcpClient.tools();
-      allTools = { ...tidalTools, ...mcpTools };
-      mcpAvailable = true;
-      console.log('Li.Fi MCP tools loaded:', Object.keys(mcpTools).length);
-    } catch (err) {
-      console.warn('Li.Fi MCP server unavailable, using tidal tools only:', err instanceof Error ? err.message : err);
-    }
-
-    // Tell the agent about MCP tool availability
-    const mcpNote = mcpAvailable
-      ? '\n\nLi.Fi MCP tools are available — you have access to additional Li.Fi-specific tools beyond the built-in Tidal tools.'
-      : '\n\nLi.Fi MCP tools are currently unavailable. Use the built-in Tidal tools (getQuote, prepareSwap, prepareBridge, prepareCrossChainYield) for all swap and bridge operations. Do not mention MCP tools to the user.';
+    // Solana tools — no external MCP needed
+    const allTools = { ...solanaTidalTools };
 
     // Convert UI messages to model messages (async function!)
     const modelMessages = await convertToModelMessages(messages);
@@ -118,24 +92,14 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model: anthropic('claude-sonnet-4-20250514'),
-      system: systemPrompt + walletInfo + mcpNote,
+      system: systemPrompt + walletInfo,
       messages: modelMessages,
-      tools: allTools as typeof tidalTools,
+      tools: allTools as typeof solanaTidalTools,
       stopWhen: stepCountIs(5),
-      onFinish: async () => {
-        // Clean up MCP client when stream finishes
-        if (mcpClient) {
-          try { await mcpClient.close(); } catch { /* ignore */ }
-        }
-      },
     });
 
     return result.toUIMessageStreamResponse();
   } catch (error) {
-    // Clean up MCP client on error
-    if (mcpClient) {
-      try { await mcpClient.close(); } catch { /* ignore */ }
-    }
     console.error('Chat API error:', error);
     return new Response(
       JSON.stringify({ error: 'Failed to process chat request', details: String(error) }),
