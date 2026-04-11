@@ -1,60 +1,71 @@
-# Tidal Checkpoint — March 12, 2026
+# Tidal Checkpoint — April 10, 2026
 
-## Where We Left Off
+## What Was Completed This Session
 
-Completed the Solana-first pivot. PRD v2 is written, CLAUDE.md updated, all decisions documented.
+- **Solana Phase 1 foundation built** — 12 files, 1,481 lines of new code
+- `lib/solana/constants.ts` — Token mints (SOL, USDC, JitoSOL, etc.), program IDs, RPC endpoints, resolvers
+- `lib/solana/connection.ts` — RPC connection singleton, SOL/SPL balance queries, unit conversion
+- `lib/solana/jupiter-swap.ts` — Jupiter Ultra API integration (order + execute + route formatting)
+- `lib/solana/jito.ts` — JitoSOL staking adapter (stake/unstake, rate queries, position tracking)
+- `lib/solana/kamino.ts` — Kamino Lend + Jupiter Lend adapters (deposit/withdraw, rate comparison)
+- `lib/solana/registry.ts` — Protocol registry with metadata and risk tier mapping
+- `lib/ai/tools-solana.ts` — 9 Solana AI tools (swapToken, stakeSOL, unstakeSOL, lendUSDC, withdrawLend, getSolanaRates, compareYields, scanSolanaYields, getWalletBalances)
+- `lib/ai/prompts-solana.ts` — Solana-specific system prompt + tier-specific welcome messages
+- `app/api/chat/route.ts` — Swapped from EVM tools to Solana tools, removed Li.Fi MCP dependency
+- Installed `@solana/web3.js` dependency
+- All code compiles clean (zero new TS errors)
+
+## Current State
+
+### What's Working
+- AI agent backend is fully wired to Solana tools (chat route → Solana prompts + tools)
+- Protocol adapters ready: Jupiter swap, Jito staking, Kamino lending, Jupiter Lend
+- Rate queries pull from DeFi Llama (live data) with fallback defaults
+- AI can compare Kamino vs Jupiter Lend rates and auto-recommend the better option
+- Yield scanning already works for Solana (via existing DeFi Llama route)
+- TypeScript compiles clean
+
+### What's NOT Working Yet
+- **No Solana wallet connection** — Privy still configured for EVM only (Base/Arb/OP)
+- **No transaction signing** — adapters prepare transactions but frontend can't sign Solana txs yet
+- **ActionCard.tsx** still handles EVM transaction types (supply, swap, bridge, etc.) — needs Solana equivalents
+- **ChatPanelContent.tsx** sends EVM wallet context (chainId, wagmi hooks) — needs Solana wallet hooks
+- **No tests** for the new Solana adapters
+- **Missing env vars** — `SOLANA_RPC_URL` and `JUPITER_API_KEY` not set
+
+### Partial Work
+- Landing page exists in `docs/Tidal-Landing-main/` (untracked, not integrated)
+- Stray `nul` file in project root (Windows artifact, should delete)
+
+## Next Steps (Prioritized)
+
+1. **Privy Solana wallet config** — Update PrivyProvider to support Solana wallets (Phantom, Backpack, embedded). This is the gateway to everything else.
+2. **Frontend transaction signing** — Update ChatPanelContent.tsx to pass Solana wallet context, update ActionCard.tsx to handle Solana tx types (stake, lend, swap)
+3. **Solana wallet hooks** — Replace wagmi hooks with Solana wallet adapter or Privy Solana hooks in the 3-panel layout
+4. **Environment variables** — Add `SOLANA_RPC_URL` (Helius/Alchemy) and `JUPITER_API_KEY` (portal.jup.ag)
+5. **Tests** — Add tests for Solana adapters (jito, kamino, jupiter-swap, registry, tools-solana)
+6. **Landing page integration** — Bring `docs/Tidal-Landing-main/` into `app/page.tsx`
+7. **Value prop questions** — Still unanswered from March 12 (see prior checkpoint)
+
+## Blockers
+
+- **Jupiter API key** — Need to register at portal.jup.ag for production rate limits (free tier is 60 req/min, may be sufficient for launch)
+- **Solana RPC** — Public endpoint works for dev but will rate-limit in production. Need Helius or Alchemy endpoint.
+- **Colosseum timing** — Still haven't looked up the next hackathon cycle deadline
 
 ## Key Decisions Made
-- **Direction**: Solana-first consumer DeFi product (EVM code parked)
-- **Wallet**: Privy (embedded Solana + Phantom/Backpack external connectors)
-- **Swaps**: Jupiter Ultra API direct (not Li.Fi)
-- **Team**: 0xSardius (engineering) + 0xJulo (design engineering)
-- **Testing**: Mainnet with small amounts
-- **Target launch**: Colosseum hackathon (timing TBD — need to look up next cycle)
-- **Stablecoin yield**: Kamino + Jupiter Lend both in Phase 1
 
-## Open Value Prop Questions (Answer Before Building)
-
-These sharpen the product and directly inform 0xJulo's design work:
-
-### 1. Why AI and not just a comparison table?
-Kamino and Jupiter both have good UIs. What does the AI add? Is it:
-- **Decision-making** ("I don't know which is safer") — AI as risk advisor
-- **Execution simplification** ("I don't want to learn two UIs") — AI as universal interface
-- **Ongoing management** ("I don't want to check rates weekly") — AI as portfolio manager
-- All three? Which leads?
-
-### 2. What's the first 30 seconds?
-New user lands on Tidal with USDC in Phantom. What happens?
-- Connect wallet first, then chat?
-- Pick risk tier first?
-- Just type "I have 500 USDC" and the app handles everything?
-This drives the entire onboarding flow design.
-
-### 3. Why Tidal over Phantom's built-in staking?
-Phantom already has one-click SOL staking. What pulls users into Tidal instead?
-The stablecoin lending angle is stronger (Phantom doesn't do that) — should that be the lead feature over SOL staking?
-
-### 4. What's the retention hook?
-User deposits USDC via Tidal. Why do they come back tomorrow?
-- Rate monitoring alerts ("Jupiter Lend just passed Kamino, want me to move?")
-- Yield earned dashboard ("You've earned $4.32 this week")
-- Expanding into new strategies as trust builds
-- Something else?
-
-### 5. Who's the day-one user?
-- Someone with USDC in a Solana wallet not earning yield?
-- Someone with SOL who doesn't know about staking?
-- Someone coming from EVM who's Solana-curious?
-This affects messaging, onboarding, and which feature gets top billing.
-
-## What's Next
-1. Answer the 5 questions above (discuss with 0xJulo)
-2. Look up Colosseum hackathon next cycle timing
-3. Start Phase 1 build: F1 (Privy Solana wallet config) is the first task
+- **Build in place, don't fork** — ~60% of codebase is chain-agnostic (frontend, AI SDK, risk system, DB). Solana code in `lib/solana/`, EVM code parked in place.
+- **Hard swap, not feature flag** — Chat route uses Solana tools directly. No EVM/Solana toggle. Can `git checkout` for EVM demo if needed.
+- **REST-first for protocol adapters** — Using Jupiter Ultra REST API, DeFi Llama API, and Jito public stats rather than heavy SDK dependencies. Keeps bundle small and integration simple.
+- **Multi-chain ready** — Solana code namespaced in `lib/solana/`, AI tools in `tools-solana.ts`. Future `lib/evm/` refactor is straightforward.
+- **`@solana/web3.js` v1** — Chose v1 for compatibility with protocol SDKs (Kamino, Jito) if we add them later.
 
 ## Key Files
+
+- Solana adapters: `lib/solana/` (7 files)
+- Solana AI tools: `lib/ai/tools-solana.ts` (9 tools)
+- Solana prompts: `lib/ai/prompts-solana.ts`
+- Chat route (updated): `app/api/chat/route.ts`
 - PRD: `docs/Tidal_PRD_v2_Solana.md`
-- Previous PRD: `docs/Tidal_PRD.md` (v1 hackathon, archived)
-- Project instructions: `CLAUDE.md`
-- Latest commit: `1ef26d2` (Promote stablecoin yield to Phase 1)
+- Latest commit: `e330192`
